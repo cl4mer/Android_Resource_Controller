@@ -40,19 +40,19 @@ public class StartUpActivity extends Activity {
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();
-		Log.i(TAG,"onDestroy");
+		
 	}
 
 	@Override
 	protected void onResume() {
 		super.onResume();
-		Log.i(TAG,"onResume");
+		
 	}
 
 	@Override
 	protected void onStart() {
 		super.onStart();
-		Log.i(TAG,"onStart");
+		
 		
 		if(isServiceRunning(".BackgroundService")){
 			toggleService.setChecked(true);
