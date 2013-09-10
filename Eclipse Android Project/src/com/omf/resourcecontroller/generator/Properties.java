@@ -1,5 +1,7 @@
 package com.omf.resourcecontroller.generator;
 
+import java.util.Map;
+
 public class Properties {
 	public enum KeyType {
 		STRING,
@@ -88,12 +90,29 @@ public class Properties {
 		closeKey();
 	}
 
+	public void addKey(Map<String, String> m, KeyType keyType) {
+		openKey(KeyType.HASH);
+		buf.append('\n');
+		addHash(m, keyType);
+		buf.append("  ");
+		closeKey();
+	}
+	
+	private void addHash(Map<String, String> m, KeyType keyType) {
+		String type = keyTypeToString(keyType);
+		for (String k : m.keySet()) {
+			buf.append("    <key").append(k).append(" type=\"").append(type).append("\">")
+			   .append(m.get(k)).append("</key").append(k);
+		}
+	}
+
 	private void addArray(String[] a, KeyType elementType) {
 		String type = keyTypeToString(elementType);
 		for (int i = 0; i < a.length; i++) {
 			buf.append("    <it type=\"").append(type).append("\">").append(a[i]).append("</it>\n");
 		}
 	}
+	
 	
 	public String toString() {
 		buf.append("</props>\n");
