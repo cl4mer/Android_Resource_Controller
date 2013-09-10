@@ -102,7 +102,7 @@ public class Properties {
 		String type = keyTypeToString(keyType);
 		for (String k : m.keySet()) {
 			buf.append("    <key").append(k).append(" type=\"").append(type).append("\">")
-			   .append(m.get(k)).append("</key").append(k);
+			   .append(m.get(k)).append("</key").append(k).append(">\n");
 		}
 	}
 
