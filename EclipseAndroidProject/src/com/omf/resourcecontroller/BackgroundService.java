@@ -69,12 +69,7 @@ public class BackgroundService extends Service implements Constants{
 		topicName = telephonyMgr.getDeviceId();
 		UnamePass = "android.omf."+topicName;
 		
-		/////////////	THREAD POLICY
-		
-		// Allow the connection to be established in the main thread
-		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-		StrictMode.setThreadPolicy(policy);
-		
+				
 		//Init aSmack
 		//ctx = getApplicationContext();
 		//SmackAndroid.init(ctx);
