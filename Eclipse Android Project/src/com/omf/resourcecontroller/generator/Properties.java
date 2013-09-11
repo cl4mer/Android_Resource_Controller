@@ -25,12 +25,12 @@ public class Properties {
 		this.buf = new StringBuffer();
 		this.xmlns = xmlns;
 		this.keyIndex = 1;
-		this.buf.append("<").append(messageTypeToString(messageType))
+		this.buf.append("  <").append(messageTypeToString(messageType))
 		    .append(" xmlns:").append(xmlns).append("=\"").append(url).append("\">\n");
 	}
 
 	private void openKey(KeyType type) {
-		buf.append("  <").append(xmlns).append(":key").append(keyIndex)
+		buf.append("    <").append(xmlns).append(":key").append(keyIndex)
 		   .append(" type=\"").append(keyTypeToString(type)).append("\">");
 	}
 	
@@ -86,7 +86,7 @@ public class Properties {
 		openKey(KeyType.ARRAY);
 		buf.append('\n');
 		addArray(a, elementType);
-		buf.append("  ");
+		buf.append("    ");
 		closeKey();
 	}
 
@@ -94,14 +94,14 @@ public class Properties {
 		openKey(KeyType.HASH);
 		buf.append('\n');
 		addHash(m, keyType);
-		buf.append("  ");
+		buf.append("    ");
 		closeKey();
 	}
 	
 	private void addHash(Map<String, String> m, KeyType keyType) {
 		String type = keyTypeToString(keyType);
 		for (String k : m.keySet()) {
-			buf.append("    <key").append(k).append(" type=\"").append(type).append("\">")
+			buf.append("      <key").append(k).append(" type=\"").append(type).append("\">")
 			   .append(m.get(k)).append("</key").append(k).append(">\n");
 		}
 	}
@@ -109,13 +109,12 @@ public class Properties {
 	private void addArray(String[] a, KeyType elementType) {
 		String type = keyTypeToString(elementType);
 		for (int i = 0; i < a.length; i++) {
-			buf.append("    <it type=\"").append(type).append("\">").append(a[i]).append("</it>\n");
+			buf.append("      <it type=\"").append(type).append("\">").append(a[i]).append("</it>\n");
 		}
 	}
 	
-	
 	public String toString() {
-		buf.append("</props>\n");
+		buf.append("  </props>\n");
 		return buf.toString();
 	}
 }

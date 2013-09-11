@@ -19,6 +19,7 @@ import android.util.Log;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.OMF.XMPPClass;
+import com.omf.resourcecontroller.generator.MessageIDGenerator;
 
 public class BackgroundService extends Service implements Constants{
 
@@ -68,6 +69,8 @@ public class BackgroundService extends Service implements Constants{
 		telephonyMgr = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);;
 		topicName = telephonyMgr.getDeviceId();
 		UnamePass = "android.omf."+topicName;
+		
+		MessageIDGenerator.setPrefix(UnamePass);
 		
 		/////////////	THREAD POLICY
 		
