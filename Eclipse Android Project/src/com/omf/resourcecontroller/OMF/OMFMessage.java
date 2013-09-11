@@ -2,42 +2,53 @@ package com.omf.resourcecontroller.OMF;
 
 import java.util.HashMap;
 
+import com.omf.resourcecontroller.generator.MessageType;
+
 public class OMFMessage {
 	
 	//Object variables
-	private String  messageType;
-	private String messageID;
+	private MessageType  messageType;
+	private String messageId;
 	private long ts;
 	private String src;
 	HashMap<String, String> properties;
-	private String type;
+	private String protocolId;
+	private String topic;
 	
-	
+	public String getTopic() {
+		return topic;
+	}
+
+	public void setTopic(String topic) {
+		this.topic = topic;
+	}
+
 	//Constructor 
 	public OMFMessage(){
 		messageType = null;
-		messageID = null;
-		ts = 1234567890L;
+		messageId = null;
+		ts = -1;
 		src = null;
-		type = null;
+		protocolId = null;
 		properties = new HashMap<String, String>();
 	}
+	
 	//Message type
-	public void setMessageType(String MessageType){
-		this.messageType = MessageType;
+	public void setMessageType(MessageType type){
+		this.messageType = type;
 	}
 	
-	public String getMessageType(){
+	public MessageType getMessageType(){
 		return this.messageType;
 	}
 	
 	//Message id
-	public void setMessageID(String MessageType){
-		this.messageID = MessageType;
+	public void setMessageId(String messageId){
+		this.messageId = messageId;
 	}
 		
-	public String getMessageID(){
-		return this.messageID;
+	public String getMessageId(){
+		return this.messageId;
 	}
 	
 	//Timestamp
@@ -57,15 +68,16 @@ public class OMFMessage {
 	public String getSrc(){
 		return this.src;
 	}
-	//Set type if type exists
-	public void setType(String Type){
-		this.type = Type;
-	}
+
 	
-	public String getType(){
-		return this.type;
+	public String getProtocolId() {
+		return protocolId;
 	}
-	
+
+	public void setProtocolId(String protocolId) {
+		this.protocolId = protocolId;
+	}
+
 	//Populate HashMap
 	public void setProperty(String key, String value){
 		this.properties.put(key, value);
@@ -83,24 +95,24 @@ public class OMFMessage {
 	}
 	
 	public String toString(){
-		String s = "Message type: "+messageType+"\n"+
-					"Message ID:"+messageID+"\n"+
+		String s = "Message type: "+messageType.toString()+"\n"+
+					"Message ID:"+messageId+"\n"+
 					"Source: "+src+"\n"+
-					"Timestamp: "+Long.toString(ts)+"\n"+
+					"Timestamp: "+ts+"\n"+
 					"Properties: "+properties.toString()+"\n";
 					
 					
-		if(messageType.equalsIgnoreCase("inform") || messageType.equalsIgnoreCase("release"))
-			s+="Itype: "+type+"\n";
-		else if(messageType.equalsIgnoreCase("create"))
-			s+="Rtype: "+type+"\n";
+		if(messageType == MessageType.inform() || messageType == MessageType.release())
+			s+="Itype: "+messageType+"\n";
+		else if(messageType == MessageType.create())
+			s+="Rtype: "+messageType+"\n";
 		
 		return s;
 	}
 	
 	public boolean equals(String mid){
 		
-		if(this.messageID.equalsIgnoreCase(mid))
+		if(this.messageId.equalsIgnoreCase(mid))
 		{
 			return true;
 		}

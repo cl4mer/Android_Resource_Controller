@@ -13,17 +13,17 @@ public class InformMessageMaker extends XMLMessageMaker {
 	StringBuffer buf;
 	
 	public InformMessageMaker(String rid, String topic, StandardMessageType type, String cid) {
-		super(MessageType.INFORM, rid, topic);
+		super(MessageType.inform(), rid, topic);
 		buf = getBuf();
-		appendStandardType(type);
-		appendCid(cid);
+		addStandardType(type);
+		addCid(cid);
 	}
 
 	public InformMessageMaker(String rid, String topic, String type, String cid) {
-		super(MessageType.INFORM, rid, topic);
+		super(MessageType.inform(), rid, topic);
 		buf = getBuf();
-		appendNonstandardType(type);
-		appendCid(cid);
+		addNonstandardType(type);
+		addCid(cid);
 	}
 
 	private String standardMessageTypeToString(StandardMessageType type) {
@@ -42,15 +42,15 @@ public class InformMessageMaker extends XMLMessageMaker {
 		buf.append(p.toString());
 	}
 	
-	private void appendStandardType(StandardMessageType type) {
+	private void addStandardType(StandardMessageType type) {
 		buf.append("  <itype>").append(standardMessageTypeToString(type)).append("</itype>\n");
 	}
 	
-	private void appendNonstandardType(String type) {
+	private void addNonstandardType(String type) {
 		buf.append("  <itype>").append(type).append("</itype>\n");
 	}
 	
-	private void appendCid(String cid) {
+	private void addCid(String cid) {
 		if (cid != null)
 			buf.append("  <cid>").append(cid).append("</cid>\n");
 	}

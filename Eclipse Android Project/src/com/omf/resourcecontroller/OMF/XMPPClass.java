@@ -26,6 +26,7 @@ import android.content.Context;
 import android.util.Log;
 
 import com.omf.resourcecontroller.Constants;
+import com.omf.resourcecontroller.generator.MessageType;
 import com.omf.resourcecontroller.parser.XMPPParser;
 
 /**
@@ -268,29 +269,29 @@ import com.omf.resourcecontroller.parser.XMPPParser;
 		
 	public void OMFHandler(OMFMessage message){
 			
-			if(message.getMessageType().equalsIgnoreCase("create"))
+			if(message.getMessageType() == MessageType.create())
 			{
 				//message.OMFCreate();
 				
 				createTopic(message.getProperty("uid"),true);
 				
 			}
-			else if (message.getMessageType().equalsIgnoreCase("configure"))
+			else if (message.getMessageType() == MessageType.configure())
 			{
 				//message.OMFConfigure();
 				
 			}
-			else if (message.getMessageType().equalsIgnoreCase("request"))
+			else if (message.getMessageType() == MessageType.request())
 			{
 				//message.OMFRequest();
 				
 			}
-			else if (message.getMessageType().equalsIgnoreCase("inform"))
+			else if (message.getMessageType() == MessageType.inform())
 			{
 				//message.OMFInform();
 				
 			}
-			else if (message.getMessageType().equalsIgnoreCase("release"))
+			else if (message.getMessageType() == MessageType.release())
 			{
 				//message.OMFInform();
 				
@@ -393,7 +394,7 @@ import com.omf.resourcecontroller.parser.XMPPParser;
 			        				//Circular array, increment counter
 			        				in=(in+1)%10;
 			        				//put message into duplicateCheck array
-			        				duplicateCheck[in]=omfMessage.getMessageID();
+			        				duplicateCheck[in]=omfMessage.getMessageId();
 			        				if(Proxy)
 			        				{
 			        					System.out.println("This is a resource proxy");

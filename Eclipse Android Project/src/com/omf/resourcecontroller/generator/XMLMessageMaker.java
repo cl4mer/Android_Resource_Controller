@@ -8,14 +8,6 @@ public class XMLMessageMaker {
 	public static final String messageEncoding = "utf-8";
 	private static final String xmlDeclaration = "<?xml version=\"1.0\" encoding=\"" + messageEncoding + "\"?>";
 	
-	public enum MessageType {
-		INFORM,
-		CONFIGURE,
-		REQUEST,
-		CREATE,
-		RELEASE
-	}
-
 	private StringBuffer buf;
 	private MessageType type;
 	
@@ -23,7 +15,7 @@ public class XMLMessageMaker {
 		super();
 		this.type = type;
 		this.buf = new StringBuffer();
-		buf.append(xmlDeclaration).append("\n<").append(messageTypeToString(type))
+		buf.append(xmlDeclaration).append("\n<").append(type.toString())
 		   .append(" xmlns=\"http://schema.mytestbed.net/omf/")
 		   .append(protocolMajor).append('.').append(protocolMinor)
 		   .append("/protocol\" mid=\"").append(MessageIDGenerator.nextId()).append("\">\n  <src>")
@@ -32,23 +24,12 @@ public class XMLMessageMaker {
 			buf.append("  <replyto>").append(topic).append("</replyto>\n");		
 	}
 	
-	private String messageTypeToString(MessageType type) {
-		switch(type) {
-		case INFORM: return "inform";
-		case CONFIGURE: return "configure";
-		case REQUEST: return "request";
-		case CREATE: return "create";
-		case RELEASE: return "release";
-		}
-		return "unknown";
-	}
-	
 	protected StringBuffer getBuf() {
 		return buf;
 	}
 	
 	public String getXMLMessage () {
-		buf.append("</").append(messageTypeToString(type)).append(">\n");
+		buf.append("</").append(type.toString()).append(">\n");
 		return buf.toString();
 	}
 
