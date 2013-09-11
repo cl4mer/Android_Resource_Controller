@@ -39,7 +39,7 @@ public class XMPPParser {
     private static final String acceptedXMLNs = "http://schema.mytestbed.net/omf/6.0/protocol";
     
     private void failParse(String message) {
-		Log.e(TAG, message);
+		//Log.e(TAG, message);
 		// TODO Find a better way to exit
 		System.exit(-1);
     }
