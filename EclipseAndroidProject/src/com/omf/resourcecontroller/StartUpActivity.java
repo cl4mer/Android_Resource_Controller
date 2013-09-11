@@ -1,17 +1,11 @@
 package com.omf.resourcecontroller;
 
-import java.util.Iterator;
-import java.util.List;
-
 import android.app.Activity;
-import android.app.ActivityManager;
-import android.app.Service;
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.ToggleButton;
-//import android.view.Menu;
 
 public class StartUpActivity extends Activity {
 	
@@ -54,7 +48,7 @@ public class StartUpActivity extends Activity {
 		super.onStart();
 		
 		
-		if(isServiceRunning(".BackgroundService")){
+		if(BackgroundService.isServiceRunning(getApplicationContext(), ".BackgroundService")){
 			toggleService.setChecked(true);
 		}else{
 			toggleService.setChecked(false);
@@ -74,11 +68,11 @@ public class StartUpActivity extends Activity {
 		@Override
 		public void onClick(View v) {
 			
-			Intent intent = new Intent(StartUpActivity.this, BackgroundService.class);
-			intent.addFlags(Service.START_STICKY);
-			intent.addFlags(Service.BIND_AUTO_CREATE);
+			Intent intent = new Intent(StartUpActivity.this, BackgroundService.class);		
 			
-			if(toggleService.isChecked() && !isServiceRunning(".BackgroundService")){
+			if(toggleService.isChecked() && !BackgroundService.isServiceRunning(StartUpActivity.this.getApplicationContext(),
+																				".BackgroundService")) {
+				
 				Log.i(TAG, "Start Service");
 				startService(intent);
 			}else {
@@ -89,20 +83,6 @@ public class StartUpActivity extends Activity {
 		}
 	};
 	
-	// --- SERVICE CHECK CONTROL USING THE SYSTMEM
-			// Check if the service is running
-			public boolean isServiceRunning(String serviceName) {
-				boolean serviceRunning = false;
-				ActivityManager am = (ActivityManager) StartUpActivity.this.getSystemService(ACTIVITY_SERVICE);
-				List<ActivityManager.RunningServiceInfo> l = am.getRunningServices(50);
-				Iterator<ActivityManager.RunningServiceInfo> i = l.iterator();
-				while (i.hasNext()) {
-					ActivityManager.RunningServiceInfo runningServiceInfo = (ActivityManager.RunningServiceInfo) i.next();
-					if (runningServiceInfo.service.getShortClassName().equals(serviceName)) {
-						serviceRunning = true;
-					}
-				}
-				return serviceRunning;
-			}
+	
 
 }

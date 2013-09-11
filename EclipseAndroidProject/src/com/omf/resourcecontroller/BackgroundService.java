@@ -12,8 +12,9 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Handler;
 import android.os.IBinder;
-import android.os.StrictMode;
+import android.os.Message;
 import android.telephony.TelephonyManager;
 import android.util.Log;
 
@@ -21,7 +22,7 @@ import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.OMF.XMPPClass;
 import com.omf.resourcecontroller.generator.MessageIDGenerator;
 
-public class BackgroundService extends Service implements Constants{
+public class BackgroundService extends Service {
 
 	public static final String TAG = "BackgroundService";
 	
@@ -29,16 +30,9 @@ public class BackgroundService extends Service implements Constants{
 	private NotificationManager notificationMgr = null;		//	NOTIFICATION MANAGER
 	private TelephonyManager  telephonyMgr = null;
 	
-	// XMPP variables
-	//private XMPPConnection xmpp = null;						// 	XMPP CONNECTION VAR
-	//private ConnectionConfiguration connConfig = null;		//  XMPP CONFIGURATION
-	//private PubSubManager pubmgr = null;					// 	XMPP PUB SUB MANAGER
-	//private Node eventNode = null;
-	//private Context ctx = null;
-	private XMPPClass test = null;
-	//XMPP Parser 
-	//private XMPPParser parser = null;
 	
+	private XMPPClass test = null;
+		
 	//OMF message object
 	OMFMessage omfMessage = null;
 	
@@ -58,82 +52,50 @@ public class BackgroundService extends Service implements Constants{
 
 	@Override
 	public void onCreate() {
-		super.onCreate();
-		
-		//////////////	INVOKE SERVICES
-		
+		super.onCreate();	
+
 		// Notification manager Service
 		notificationMgr = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		
+
 		// TelephonyMgr
 		telephonyMgr = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);;
 		topicName = telephonyMgr.getDeviceId();
 		UnamePass = "android.omf."+topicName;
-		
-		MessageIDGenerator.setPrefix(UnamePass);
-		
-		/////////////	THREAD POLICY
-		
-		// Allow the connection to be established in the main thread
-		StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-		StrictMode.setThreadPolicy(policy);
-		
-		//Init aSmack
-		//ctx = getApplicationContext();
-		//SmackAndroid.init(ctx);
-		
-		// XMPP CONNECTION
-		//connConfig = new ConnectionConfiguration(SERVER,PORT);
-		//xmpp = new XMPPConnection(connConfig);
-		// test = new XMPPClass("BackgroundServiceThread","AndroidThreadTest","pw",getApplicationContext());
-		 test = new XMPPClass(UnamePass, UnamePass, topicName, getApplicationContext());
+
+		MessageIDGenerator.setPrefix(UnamePass);	
+
+		test = new XMPPClass(UnamePass, UnamePass, topicName,  mHandler);
+		//connection will be created internally in a separate thread.
+		test.XMPPCreateConnection(getApplicationContext());
+	}
+
+
+
+	@Override
+	public int onStartCommand(Intent intent, int flags, int startId) {
+		// TODO Auto-generated method stub
+		return Service.START_STICKY;
 	}
 
 	@Override
 	public void onDestroy() {
 		super.onDestroy();
-		
-		// CLOSE CONNECTION
-		//if(xmpp != null)
-		//	xmpp.disconnect();
-		
-		
+
 		if(test != null)
 			test.destroyConnection();
-		
+
 		test = null;
-		
+
 		displayNotificationMessage("XMPP stopped");
-		
 		Log.i(TAG,"XMPP stopped");
 	}
-
-	
-	@Override
-	public void onStart(Intent intent, int startId) {
-		super.onStart(intent, startId);
-		
-		
-		//xmpp = test.XMPPCreateConnection("AndroidThreadTest", "pw", getApplicationContext());
-		//test.start();
-		
-		test.XMPPCreateConnection();
-		
-	}
-	
-	
-	
 	
 
 	// --- SERVICE CHECK CONTROL USING THE SYSTMEM
-	/**
-	 * Check is the given service is running
-	 * @param serviceName : String
-	 * @return true if the service is running
-	 */
-	public boolean isServiceRunning(String serviceName) {
+	// Check if the service is running
+	public static boolean isServiceRunning(Context context, String serviceName) {
 		boolean serviceRunning = false;
-		ActivityManager am = (ActivityManager) BackgroundService.this.getSystemService(ACTIVITY_SERVICE);
+		ActivityManager am = (ActivityManager) context.getSystemService(ACTIVITY_SERVICE);
 		List<ActivityManager.RunningServiceInfo> l = am.getRunningServices(50);
 		Iterator<ActivityManager.RunningServiceInfo> i = l.iterator();
 		while (i.hasNext()) {
@@ -154,9 +116,9 @@ public class BackgroundService extends Service implements Constants{
 		Notification notify = new Notification(android.R.drawable.stat_notify_chat, message, System.currentTimeMillis());
 		notify.flags = Notification.FLAG_AUTO_CANCEL;
 		notify.icon = R.drawable.resource_controller;
-		
+
 		// The service is not running
-		if(!isServiceRunning(("." + BackgroundService.class.getSimpleName()).trim())){
+		if( !isServiceRunning(getApplicationContext(), ".BackgroundService") ){
 			Intent start = new Intent();
 			start.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION);
 			// Notification that does not redirect to other Activities
@@ -172,5 +134,28 @@ public class BackgroundService extends Service implements Constants{
 			
 			notificationMgr.notify(R.string.app_notification_id, notify);
 		}
-	}	
+	}
+	
+	/**
+	 *  The Handler that gets information back from the XMPP class
+	 */
+	private final Handler mHandler = new Handler() {
+
+		@Override
+		public void handleMessage(Message msg) {
+			switch (msg.what) {          
+
+			case Constants.MESSAGE_READ:  				
+				processMessage(msg.obj);					
+				break; 			
+				
+			
+			}			
+		}
+	};
+
+	protected void processMessage(Object obj) {
+		// TODO Auto-generated method stub
+		
+	}
 }
