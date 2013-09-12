@@ -17,6 +17,7 @@ public class OMFMessage {
 	private String topic;
 	private IType itype;
 	private String cid;
+	private String rtype;
 	
 	public OMFMessage() {
 		messageType = null;
@@ -88,7 +89,14 @@ public class OMFMessage {
 		return this.src;
 	}
 
-	
+	public void setRtype(String text) {
+		this.rtype = text;
+	}
+
+	public String getRtype() {
+		return rtype;
+	}
+
 	public String getProtocolId() {
 		return protocolId;
 	}

@@ -35,6 +35,7 @@ public class XMPPParser {
     	EXPECT_TS,
     	EXPECT_REPLYTO,
     	EXPECT_ITYPE,
+    	EXPECT_RTYPE,
     	EXPECT_CID,
     }
     
@@ -200,6 +201,11 @@ public class XMPPParser {
 							failParse("Found <itype> in " + message.getMessageType() + " message");
 						expectedText = ExpectedText.EXPECT_ITYPE;
 						state = ParserState.PARSE_TEXT;
+					} else if (tag.equalsIgnoreCase("rtype")) {
+						if (message.getMessageType() != MessageType.create)
+							failParse("Found <rtype> in " + message.getMessageType() + " message");
+						expectedText = ExpectedText.EXPECT_RTYPE;
+						state = ParserState.PARSE_TEXT;
 					} else if (tag.equalsIgnoreCase("cid")) {
 						if (message.getMessageType() != MessageType.inform)
 							failParse("Found <itype> in " + message.getMessageType() + " message");
@@ -217,6 +223,7 @@ public class XMPPParser {
 					case EXPECT_TS: message.setTs(Long.parseLong(xpp.getText())); break;
 					case EXPECT_REPLYTO: message.setTopic(xpp.getText()); break;
 					case EXPECT_ITYPE: message.setItype(xpp.getText()); break;
+					case EXPECT_RTYPE: message.setRtype(xpp.getText()); break;
 					case EXPECT_CID: message.setCid(xpp.getText()); break;
 					case EXPECT_NONE: failParse("Can't expect NONE"); break;
 					default:
@@ -236,6 +243,7 @@ public class XMPPParser {
 					case EXPECT_TS: failIfUnequal(xpp.getName(), "ts"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_REPLYTO: failIfUnequal(xpp.getName(), "replyto"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_ITYPE: failIfUnequal(xpp.getName(), "itype"); state = ParserState.PARSE_MESSAGE_DATA; break;
+					case EXPECT_RTYPE: failIfUnequal(xpp.getName(), "rtype"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_CID: failIfUnequal(xpp.getName(), "cid"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_NONE: failParse("Can't expect NONE"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					default:
@@ -250,7 +258,8 @@ public class XMPPParser {
 					&& (xpp.getName().equalsIgnoreCase("props") || xpp.getName().equalsIgnoreCase("guard"))) {
 					if (!propsOrGuardTag.equalsIgnoreCase(xpp.getName()))
 						// Shouldn't happen since the parser should already catch this, but
-						// it doesn't hurt to check anyway
+						// it doesn't hurt to check anyway.  Also note that <props> and <guard>
+						// cannot be nested (otherwise this code would be wrong).
 						failParse("<" + propsOrGuardTag + "> ended with </" + xpp.getName() + ">");
 					state = ParserState.PARSE_MESSAGE_DATA;
 				}
