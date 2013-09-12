@@ -9,6 +9,7 @@ public class TestMessageIDGenerator {
 
 	@Before
 	public void setUp() {
+		MessageIDGenerator.clearPrefix();
 		MessageIDGenerator.setPrefix("com.omf.android.test@1234.");
 	}
 	

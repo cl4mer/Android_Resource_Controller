@@ -1,20 +1,30 @@
 package com.omf.resourcecontroller.OMF;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import com.omf.resourcecontroller.generator.MessageType;
 
 public class OMFMessage {
-	
-	//Object variables
-	private MessageType  messageType;
+	private MessageType messageType;
 	private String messageId;
 	private long ts;
 	private String src;
-	HashMap<String, String> properties;
+	Map<String, String> properties;
+	Map<String, String> guard;
 	private String protocolId;
 	private String topic;
 	
+	public OMFMessage() {
+		messageType = null;
+		messageId = null;
+		ts = -1;
+		src = null;
+		protocolId = null;
+		properties = new HashMap<String, String>();
+		guard = new HashMap<String, String>();
+	}
+
 	public String getTopic() {
 		return topic;
 	}
@@ -22,50 +32,40 @@ public class OMFMessage {
 	public void setTopic(String topic) {
 		this.topic = topic;
 	}
-
-	//Constructor 
-	public OMFMessage(){
-		messageType = null;
-		messageId = null;
-		ts = -1;
-		src = null;
-		protocolId = null;
-		properties = new HashMap<String, String>();
-	}
 	
-	//Message type
-	public void setMessageType(MessageType type){
+	public Map<String, String> getGuard() {
+		return guard;
+	}
+
+	public void setMessageType(MessageType type) {
 		this.messageType = type;
 	}
 	
-	public MessageType getMessageType(){
+	public MessageType getMessageType() {
 		return this.messageType;
 	}
 	
-	//Message id
-	public void setMessageId(String messageId){
+	public void setMessageId(String messageId) {
 		this.messageId = messageId;
 	}
 		
-	public String getMessageId(){
+	public String getMessageId() {
 		return this.messageId;
 	}
 	
-	//Timestamp
-	public void setTs(long timestamp){
+	public void setTs(long timestamp) {
 		this.ts = timestamp;
 	}
 	
-	public long getTs(){
+	public long getTs() {
 		return this.ts;
 	}
 	
-	//Source
-	public void setSrc(String source){
+	public void setSrc(String source) {
 		this.src = source;
 	}
 	
-	public String getSrc(){
+	public String getSrc() {
 		return this.src;
 	}
 
@@ -78,23 +78,20 @@ public class OMFMessage {
 		this.protocolId = protocolId;
 	}
 
-	//Populate HashMap
-	public void setProperty(String key, String value){
+	public void setProperty(String key, String value) {
 		this.properties.put(key, value);
 	}
 	
 	
-	public HashMap<String, String> getProperties(){
-		
+	public Map<String, String> getProperties() {		
 		return this.properties;
 	}
 	
-	public String getProperty(String key){
-		
+	public String getProperty(String key) {
 		return this.properties.get(key);
 	}
 	
-	public String toString(){
+	public String toString() {
 		String s = "Message type: "+messageType.toString()+"\n"+
 					"Message ID:"+messageId+"\n"+
 					"Source: "+src+"\n"+
@@ -110,55 +107,46 @@ public class OMFMessage {
 		return s;
 	}
 	
-	public boolean equals(String mid){
-		
-		if(this.messageId.equalsIgnoreCase(mid))
-		{
-			return true;
-		}
-			
-		return false;
+	/*
+	public boolean equals(String mid) {		
+		return this.messageId.equalsIgnoreCase(mid);
 	}
+	*/
 	
 	public boolean isEmpty()
 	{
-		if (messageType!=null){
-			return false;
-		}
-		return true;
+		return messageType == null;
 	}
 	
-	
-	public void OMFCreate(){
+	/*
+	public void OMFCreate() {
 		//Code to create something
 		System.out.println(this.messageType);
 		return;
 	}
 	
-	public void OMFConfigure(){
+	public void OMFConfigure() {
 		//Code to configure something
 		System.out.println(this.messageType);
 		return;
 	}
 	
-	public void OMFRequest(){
+	public void OMFRequest() {
 		//Code to reply to a certain request
 		System.out.println(this.messageType);
 		return;
 	}
 	
-	public void OMFInform(){
+	public void OMFInform() {
 		//Code to inform someone of something
 		System.out.println(this.messageType);
 		return;
 	}
 	
-	public void OMFRelease(){
+	public void OMFRelease() {
 		//Code to inform someone of something
 		System.out.println(this.messageType);
 		return;
 	}
-	
-	
-	
+	*/
 }

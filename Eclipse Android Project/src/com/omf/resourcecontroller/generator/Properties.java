@@ -17,26 +17,23 @@ public class Properties {
 	}
 	
 	private String xmlns;
-	private int keyIndex;
 	private StringBuffer buf;
 	
 	public Properties(MessageType messageType, String xmlns, String url) {
 		super();
 		this.buf = new StringBuffer();
 		this.xmlns = xmlns;
-		this.keyIndex = 1;
 		this.buf.append("  <").append(messageTypeToString(messageType))
 		    .append(" xmlns:").append(xmlns).append("=\"").append(url).append("\">\n");
 	}
 
-	private void openKey(KeyType type) {
-		buf.append("    <").append(xmlns).append(":key").append(keyIndex)
+	private void openKey(String keyName, KeyType type) {
+		buf.append("    <").append(xmlns).append(":").append(keyName)
 		   .append(" type=\"").append(keyTypeToString(type)).append("\">");
 	}
 	
-	private void closeKey() {
-		buf.append("</").append(xmlns).append(":key").append(keyIndex).append(">\n");
-		keyIndex++;
+	private void closeKey(String keyName) {
+		buf.append("</").append(xmlns).append(":").append(keyName).append(">\n");
 	}
 
 	private String messageTypeToString(MessageType messageType) {
@@ -64,38 +61,38 @@ public class Properties {
 		return b ? "true" : "false";
 	}
 
-	public void addKey(boolean b) {
-		openKey(KeyType.BOOLEAN);
+	public void addKey(String keyName, boolean b) {
+		openKey(keyName, KeyType.BOOLEAN);
 		buf.append(booleanToString(b));
-		closeKey();
+		closeKey(keyName);
 	}
 	
-	public void addKey(double d) {
-		openKey(KeyType.FIXNUM);
+	public void addKey(String keyName, double d) {
+		openKey(keyName, KeyType.FIXNUM);
 		buf.append(d);
-		closeKey();
+		closeKey(keyName);
 	}
 	
-	public void addKey(String s) {
-		openKey(KeyType.STRING);
+	public void addKey(String keyName, String s) {
+		openKey(keyName, KeyType.STRING);
 		buf.append(s); // WARNING: No escaping?
-		closeKey();
+		closeKey(keyName);
 	}
 	
-	public void addKey(String[] a, KeyType elementType) {
-		openKey(KeyType.ARRAY);
+	public void addKey(String keyName, String[] a, KeyType elementType) {
+		openKey(keyName, KeyType.ARRAY);
 		buf.append('\n');
 		addArray(a, elementType);
 		buf.append("    ");
-		closeKey();
+		closeKey(keyName);
 	}
 
-	public void addKey(Map<String, String> m, KeyType keyType) {
-		openKey(KeyType.HASH);
+	public void addKey(String keyName, Map<String, String> m, KeyType keyType) {
+		openKey(keyName, KeyType.HASH);
 		buf.append('\n');
 		addHash(m, keyType);
 		buf.append("    ");
-		closeKey();
+		closeKey(keyName);
 	}
 	
 	private void addHash(Map<String, String> m, KeyType keyType) {

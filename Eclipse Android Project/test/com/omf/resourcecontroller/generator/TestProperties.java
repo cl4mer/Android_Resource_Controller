@@ -14,7 +14,7 @@ public class TestProperties {
 	@Test
 	public void testProperties1() {
 		Properties p = new Properties(Properties.MessageType.PROPS, "ethz", "http://www.ethz.ch");
-		p.addKey(true);
+		p.addKey("flag", true);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}
@@ -23,10 +23,10 @@ public class TestProperties {
 	public void testProperties2() {
 		String[] values = { "hi", "ho" };
 		Properties p = new Properties(Properties.MessageType.PROPS, "ethz", "http://www.ethz.ch");
-		p.addKey("my_string_value");
-		p.addKey(5.6);
-		p.addKey(true);
-		p.addKey(values, Properties.KeyType.STRING);
+		p.addKey("reason", "my_string_value");
+		p.addKey("point-seven-times-eight", 5.6);
+		p.addKey("flag", true);
+		p.addKey("greetings", values, Properties.KeyType.STRING);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}
@@ -38,7 +38,7 @@ public class TestProperties {
 		m.put("B", "true");
 		m.put("C", "123");
 		Properties p = new Properties(Properties.MessageType.PROPS, "ethz", "http://www.ethz.ch");
-		p.addKey(m, Properties.KeyType.STRING);
+		p.addKey("values", m, Properties.KeyType.STRING);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}
