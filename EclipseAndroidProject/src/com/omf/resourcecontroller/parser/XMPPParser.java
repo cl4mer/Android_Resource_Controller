@@ -85,6 +85,8 @@ public class XMPPParser {
 		XmlPullParserFactory factory = XmlPullParserFactory.newInstance();		
 		OMFMessage message = new OMFMessage();
 		
+		System.out.println(xmlString);
+		
 		ParserState state = ParserState.PARSE_MESSAGE_TYPE;
 
 		factory.setNamespaceAware(true);
