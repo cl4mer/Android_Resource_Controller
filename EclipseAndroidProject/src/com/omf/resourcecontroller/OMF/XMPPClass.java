@@ -265,29 +265,29 @@ public class XMPPClass {
 
 	public void OMFHandler(OMFMessage message){
 
-		if(message.getMessageType() == MessageType.create())
+		if(message.getMessageType() == MessageType.create)
 		{
 			//message.OMFCreate();
 
 			createTopic(message.getProperty("uid"),true);
 
 		}
-		else if (message.getMessageType() == MessageType.configure())
+		else if (message.getMessageType() == MessageType.configure)
 		{
 			//message.OMFConfigure();
 
 		}
-		else if (message.getMessageType() == MessageType.request())
+		else if (message.getMessageType() == MessageType.request)
 		{
 			//message.OMFRequest();
 
 		}
-		else if (message.getMessageType() == MessageType.inform())
+		else if (message.getMessageType() == MessageType.inform)
 		{
 			//message.OMFInform();
 
 		}
-		else if (message.getMessageType() == MessageType.release())
+		else if (message.getMessageType() == MessageType.release)
 		{
 			//message.OMFInform();
 

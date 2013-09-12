@@ -3,6 +3,7 @@ package com.omf.resourcecontroller.OMF;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.omf.resourcecontroller.generator.IType;
 import com.omf.resourcecontroller.generator.MessageType;
 
 public class OMFMessage {
@@ -14,6 +15,8 @@ public class OMFMessage {
 	Map<String, String> guard;
 	private String protocolId;
 	private String topic;
+	private IType itype;
+	private String cid;
 	
 	public OMFMessage() {
 		messageType = null;
@@ -53,6 +56,22 @@ public class OMFMessage {
 		return this.messageId;
 	}
 	
+	public void setItype(String text) {
+		itype = new IType(text);
+	}
+	
+	public IType getItype() {
+		return itype;
+	}
+
+	public void setCid(String text) {
+		this.cid = text;
+	}
+
+	public String getCid() {
+		return cid;
+	}
+
 	public void setTs(long timestamp) {
 		this.ts = timestamp;
 	}
@@ -99,9 +118,9 @@ public class OMFMessage {
 					"Properties: "+properties.toString()+"\n";
 					
 					
-		if(messageType == MessageType.inform() || messageType == MessageType.release())
+		if(messageType == MessageType.inform || messageType == MessageType.release)
 			s+="Itype: "+messageType+"\n";
-		else if(messageType == MessageType.create())
+		else if(messageType == MessageType.create)
 			s+="Rtype: "+messageType+"\n";
 		
 		return s;
@@ -117,7 +136,7 @@ public class OMFMessage {
 	{
 		return messageType == null;
 	}
-	
+
 	/*
 	public void OMFCreate() {
 		//Code to create something

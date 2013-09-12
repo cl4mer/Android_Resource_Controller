@@ -10,11 +10,11 @@ public class MessageType {
 	}
 	private Type type;
 	
-	private static MessageType inform = new MessageType(Type.INFORM);
-	private static MessageType configure = new MessageType(Type.CONFIGURE);
-	private static MessageType request = new MessageType(Type.REQUEST);
-	private static MessageType create = new MessageType(Type.CREATE);
-	private static MessageType release = new MessageType(Type.RELEASE);
+	public static final MessageType inform = new MessageType(Type.INFORM);
+	public static final MessageType configure = new MessageType(Type.CONFIGURE);
+	public static final MessageType request = new MessageType(Type.REQUEST);
+	public static final MessageType create = new MessageType(Type.CREATE);
+	public static final MessageType release = new MessageType(Type.RELEASE);
 	
 	private MessageType(Type type) {
 		this.type = type;
@@ -31,37 +31,17 @@ public class MessageType {
 		return "unknown";
 	}
 
-	public static MessageType inform() {
-		return inform;
-	}
-
-	public static MessageType configure() {
-		return configure;
-	}
-
-	public static MessageType request() {
-		return request;
-	}
-
-	public static MessageType create() {
-		return create;
-	}
-
-	public static MessageType release() {
-		return release;
-	}
-
 	public static MessageType fromString(String tag) {
 		if (tag.equalsIgnoreCase("inform"))
-			return inform();
+			return inform;
 		else if (tag.equalsIgnoreCase("configure"))
-			return configure();
+			return configure;
 		else if (tag.equalsIgnoreCase("request"))
-			return request();
+			return request;
 		else if (tag.equalsIgnoreCase("create"))
-			return create();
+			return create;
 		else if (tag.equalsIgnoreCase("release"))
-			return release();
+			return release;
 		else
 			return null;
 	}

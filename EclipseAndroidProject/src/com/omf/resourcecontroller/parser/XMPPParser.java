@@ -34,16 +34,45 @@ public class XMPPParser {
     	EXPECT_SRC,
     	EXPECT_TS,
     	EXPECT_REPLYTO,
+    	EXPECT_ITYPE,
+    	EXPECT_CID,
     }
     
     private static final String acceptedXMLNs = "http://schema.mytestbed.net/omf/6.0/protocol";
     
     private void failParse(String message) {
 		//Log.e(TAG, message);
+		System.err.println(TAG + ": " + message);
 		// TODO Find a better way to exit
 		System.exit(-1);
     }
+    @SuppressWarnings("unused")
+    private String parseStateToString(ParserState s) {
+    	switch (s) {
+    	case PARSE_MESSAGE_TYPE: return "PARSE_MESSAGE_TYPE";
+    	case PARSE_MESSAGE_DATA: return "PARSE_MESSAGE_DATA";
+    	case PARSE_PROPS: return "PARSE_PROPS";
+    	case PARSE_TEXT: return "PARSE_TEXT";
+    	case PARSE_END_TAG: return "PARSE_END_TAG";
+    	}
+    	return "PARSE_UNKNOWN";
+    }
     
+    private String eventTypeToString(int eventType) {
+    	switch (eventType) {
+    	case XmlPullParser.CDSECT: return "CDSECT";
+    	case XmlPullParser.COMMENT: return "COMMENT";
+    	case XmlPullParser.DOCDECL: return "DOCDECL";
+    	case XmlPullParser.END_DOCUMENT: return "END_DOCUMENT";
+    	case XmlPullParser.END_TAG: return "END_TAG";
+    	case XmlPullParser.ENTITY_REF: return "ENTITY_REF";
+    	case XmlPullParser.IGNORABLE_WHITESPACE: return "IGNORABLE_WHITESPACE";
+    	case XmlPullParser.START_DOCUMENT: return "START_DOCUMENT";
+    	case XmlPullParser.START_TAG: return "START_TAG";
+    	case XmlPullParser.TEXT: return "TEXT";
+    	}
+    	return Integer.toString(eventType);
+    }
     /**
 	 * XML Parser
 	 * @param xmlString XML String 
@@ -72,6 +101,14 @@ public class XMPPParser {
 
 		int eventType = xpp.getEventType();
 		while (eventType != XmlPullParser.END_DOCUMENT) {
+			
+			if (eventType == XmlPullParser.START_TAG)
+				System.err.println(parseStateToString(state) + ": <" + xpp.getName() + ">");
+			else if (eventType == XmlPullParser.END_TAG)
+				System.err.println(parseStateToString(state) + ": </" + xpp.getName() + ">");
+			else
+				System.err.println(parseStateToString(state) + ": " + eventTypeToString(eventType));
+			
 			switch (state) {
 			case PARSE_MESSAGE_TYPE:
 				if (eventType == XmlPullParser.START_TAG) {
@@ -99,24 +136,22 @@ public class XMPPParser {
 						} else
 							failParse("Unknown attribute \"" + attribute + "\" for " + xpp.getName() + " message");
 					}
-				} else
-					failParse("Expected start tag, got " + eventType);
-
-				state = ParserState.PARSE_END_TAG;
-
-				if (message.getMessageType() == MessageType.configure())
-					expectedText = ExpectedText.EXPECT_CONFIGURE;
-				else if (message.getMessageType() == MessageType.create())
-					expectedText = ExpectedText.EXPECT_CREATE;
-				else if (message.getMessageType() == MessageType.inform())
-					expectedText = ExpectedText.EXPECT_INFORM;
-				else if (message.getMessageType() == MessageType.release())
-					expectedText = ExpectedText.EXPECT_RELEASE;
-				else if (message.getMessageType() == MessageType.request())
-					expectedText = ExpectedText.EXPECT_REQUEST;
-				else
-					failParse("Internal error: unknown message type");
-				
+					
+					if (message.getMessageType() == MessageType.configure)
+						expectedText = ExpectedText.EXPECT_CONFIGURE;
+					else if (message.getMessageType() == MessageType.create)
+						expectedText = ExpectedText.EXPECT_CREATE;
+					else if (message.getMessageType() == MessageType.inform)
+						expectedText = ExpectedText.EXPECT_INFORM;
+					else if (message.getMessageType() == MessageType.release)
+						expectedText = ExpectedText.EXPECT_RELEASE;
+					else if (message.getMessageType() == MessageType.request)
+						expectedText = ExpectedText.EXPECT_REQUEST;
+					else
+						failParse("Internal error: unknown message type " + message.getMessageType());
+					
+					state = ParserState.PARSE_MESSAGE_DATA;
+				}
 				break;
 
 			case PARSE_MESSAGE_DATA:
@@ -160,10 +195,19 @@ public class XMPPParser {
 					} else if (tag.equalsIgnoreCase("replyto")) {
 						expectedText = ExpectedText.EXPECT_REPLYTO;
 						state = ParserState.PARSE_TEXT;
+					} else if (tag.equalsIgnoreCase("itype")) {
+						if (message.getMessageType() != MessageType.inform)
+							failParse("Found <itype> in " + message.getMessageType() + " message");
+						expectedText = ExpectedText.EXPECT_ITYPE;
+						state = ParserState.PARSE_TEXT;
+					} else if (tag.equalsIgnoreCase("cid")) {
+						if (message.getMessageType() != MessageType.inform)
+							failParse("Found <itype> in " + message.getMessageType() + " message");
+						expectedText = ExpectedText.EXPECT_CID;
+						state = ParserState.PARSE_TEXT;
 					} else
 						failParse("Unknown tag \"" + tag + "\"");
-				} else
-					failParse("Expected start tag, got " + eventType);
+				}
 				break;
 
 			case PARSE_TEXT:
@@ -172,30 +216,44 @@ public class XMPPParser {
 					case EXPECT_SRC: message.setSrc(xpp.getText()); break;
 					case EXPECT_TS: message.setTs(Long.parseLong(xpp.getText())); break;
 					case EXPECT_REPLYTO: message.setTopic(xpp.getText()); break;
+					case EXPECT_ITYPE: message.setItype(xpp.getText()); break;
+					case EXPECT_CID: message.setCid(xpp.getText()); break;
 					case EXPECT_NONE: failParse("Can't expect NONE"); break;
+					default:
+						failParse("Internal error: forgot a case label in PARSE_TEXT");
 					}
 					state = ParserState.PARSE_END_TAG;
 				} else
-					failParse("Expected text tag, got " + eventType);
+					failParse("Expected text tag, got " + eventTypeToString(eventType));
 				break;
 
 			case PARSE_END_TAG:
 				if (eventType != XmlPullParser.END_TAG)
-					failParse("Expected end tag, got " + eventType);
+					failParse("Expected end tag, got " + eventTypeToString(eventType));
 				else {
 					switch (expectedText) {
 					case EXPECT_SRC: failIfUnequal(xpp.getName(), "src"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_TS: failIfUnequal(xpp.getName(), "ts"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_REPLYTO: failIfUnequal(xpp.getName(), "replyto"); state = ParserState.PARSE_MESSAGE_DATA; break;
+					case EXPECT_ITYPE: failIfUnequal(xpp.getName(), "itype"); state = ParserState.PARSE_MESSAGE_DATA; break;
+					case EXPECT_CID: failIfUnequal(xpp.getName(), "cid"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_NONE: failParse("Can't expect NONE"); state = ParserState.PARSE_MESSAGE_DATA; break;
+					default:
+						failParse("Internal error: forgot a case label in PARSE_END_TAG");
 					}
 				}
 				break;
 				
 			case PARSE_PROPS:
-				if (eventType == XmlPullParser.END_TAG && 
-				(xpp.getName().equalsIgnoreCase("props") || xpp.getName().equalsIgnoreCase("guard")))
+				// FIXME This code just skips over props
+				if (eventType == XmlPullParser.END_TAG 
+					&& (xpp.getName().equalsIgnoreCase("props") || xpp.getName().equalsIgnoreCase("guard"))) {
+					if (!propsOrGuardTag.equalsIgnoreCase(xpp.getName()))
+						// Shouldn't happen since the parser should already catch this, but
+						// it doesn't hurt to check anyway
+						failParse("<" + propsOrGuardTag + "> ended with </" + xpp.getName() + ">");
 					state = ParserState.PARSE_MESSAGE_DATA;
+				}
 				break;
 			}
 			
