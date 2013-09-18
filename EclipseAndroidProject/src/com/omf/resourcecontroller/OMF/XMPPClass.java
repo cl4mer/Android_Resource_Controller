@@ -2,7 +2,6 @@ package com.omf.resourcecontroller.OMF;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
 
 import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.ConnectionConfiguration;
@@ -49,9 +48,9 @@ public class XMPPClass {
 	//private Node eventNode = null;							// 	XMPP Eventnode
 
 	private XMPPConnectionListener connectionListener = null;							
-	private String Username = null;							//	Username for XMPP login
-	private String Password = null;							//	Password for XMPP login
-	private String Topic = null;
+	private String username = null;							//	Username for XMPP login
+	private String password = null;							//	Password for XMPP login
+	private String topic = null;
 	private XMPPConnection xmpp = null;
 
 	//XMPP Parser 
@@ -62,8 +61,8 @@ public class XMPPClass {
 
 
 	//Node and Node Listener HashMap
-	HashMap<String, ItemEventCoordinator> NodeListeners;
-	HashMap<String, Node> Nodes;
+	HashMap<String, ItemEventCoordinator> nodeListeners;
+	HashMap<String, Node> nodes;
 
 	//flag
 	private boolean flag;
@@ -71,12 +70,12 @@ public class XMPPClass {
 
 	public XMPPClass(String username, String password, String topicName, Handler handler){
 		
-		NodeListeners = new HashMap<String, ItemEventCoordinator>();
-		Nodes = new HashMap<String, Node>();
-		Username = username;
-		Password = password;
-		Topic = topicName;		
-		flag = true;
+		this.nodeListeners = new HashMap<String, ItemEventCoordinator>();
+		this.nodes = new HashMap<String, Node>();
+		this.username = username;
+		this.password = password;
+		this.topic = topicName;		
+		this.flag = true;
 		this.handler = handler;
 	}
 	
@@ -120,7 +119,7 @@ public class XMPPClass {
 		connectionThread.start();
 
 		//Do Login
-		XMPPLogin(xmpp,Username,Password);
+		XMPPLogin(xmpp,username,password);
 
 		//If xmpp is logged in declare your presence
 		if(xmpp.isAuthenticated()){
@@ -135,7 +134,7 @@ public class XMPPClass {
 			pubmgr = new PubSubManager(xmpp);
 		}
 		//CreateTopic
-		createTopic(Topic, false);
+		createTopic(topic, false);
 
 		return xmpp;
 	}
@@ -203,7 +202,7 @@ public class XMPPClass {
 					Log.i(TAG, "Creating node "+topicName);
 					eventNode = pubmgr.createNode(topicName,f);
 					//Put node to hashmap
-					Nodes.put(topicName,eventNode);
+					nodes.put(topicName,eventNode);
 
 				} catch (XMPPException e1) {
 					//e1.printStackTrace();
@@ -218,7 +217,7 @@ public class XMPPClass {
 				eventListener = new ItemEventCoordinator(isProxy);
 				eventNode.addItemEventListener(eventListener);
 				//Put node listener created in a hashMap
-				NodeListeners.put(topicName, eventListener);
+				nodeListeners.put(topicName, eventListener);
 
 				//Subscribe to the node
 				eventNode.subscribe(xmpp.getUser());
@@ -269,7 +268,7 @@ public class XMPPClass {
 		{
 			//message.OMFCreate();
 
-			createTopic(message.getProperty("uid"),true);
+			//createTopic(message.getProperty("uid"),true);
 
 		}
 		else if (message.getMessageType() == MessageType.configure)
@@ -310,19 +309,19 @@ public class XMPPClass {
 	}
 
 	public void destroySingleTopic(String topicName){
-		Node node = Nodes.get(topicName); 
-		ItemEventCoordinator nodeListener = NodeListeners.get(topicName);
+		Node node = nodes.get(topicName); 
+		ItemEventCoordinator nodeListener = nodeListeners.get(topicName);
 		node.removeItemEventListener(nodeListener);
-		Nodes.remove(topicName);
+		nodes.remove(topicName);
 	}
 
 	public void destroyTopics(){
 		//eventNode.removeItemEventListener(eventListener);
 
 
-		for (String key : Nodes.keySet()) {
-			Node node = Nodes.get(key);
-			ItemEventCoordinator nodeListener = NodeListeners.get(key);
+		for (String key : nodes.keySet()) {
+			Node node = nodes.get(key);
+			ItemEventCoordinator nodeListener = nodeListeners.get(key);
 			node.removeItemEventListener(nodeListener);
 			try {
 				pubmgr.deleteNode(key);
@@ -342,70 +341,57 @@ public class XMPPClass {
 	@SuppressWarnings("rawtypes")
 	class ItemEventCoordinator  implements ItemEventListener <PayloadItem>
 	{
-
+		private static final int nDuplicateMessageCheck = 10;
 
 		//Variables,arrays to handle duplicate messages
 		private String[] duplicateCheck;
 		private boolean duplicateFlag;
 		private int in;
-		private boolean Proxy;
+		private boolean isProxy;
+		
 		public ItemEventCoordinator(boolean isProxy){
-
-			duplicateCheck = new String[10];
+			duplicateCheck = new String[nDuplicateMessageCheck];
 			duplicateFlag = false;
-			this.Proxy = isProxy;
+			this.isProxy = isProxy;
 
 			in = 0;
-			for(int j=0;j<10;j++)
-			{
-				duplicateCheck[j] =""; 
-			}
+			for (int j = 0; j < duplicateCheck.length; j++)
+				duplicateCheck[j] = null; 
 		}
 
 		@Override
-		public void handlePublishedItems(ItemPublishEvent <PayloadItem> items)
-		{
+		public void handlePublishedItems(ItemPublishEvent <PayloadItem> items) {
 			parser = new XMPPParser();
-			List<PayloadItem> payloads = items.getItems();
-			for(PayloadItem item : payloads)
-			{
-				if(!items.isDelayed())
-				{
+			
+			for(PayloadItem item : items.getItems()) {
+				if (!items.isDelayed()) {
 					try {
 						omfMessage = parser.XMLParse(item.toXML());
 
-						if(!omfMessage.isEmpty())
-						{
-							duplicateFlag = false;
-							for(int i=0;i<10;i++)
-							{	
-								if(omfMessage.equals(duplicateCheck[i]))
-								{
-									duplicateFlag = true;
-								}
-							}
-
-							if(!duplicateFlag)
-							{
-								//Circular array, increment counter
-								in=(in+1)%10;
-								//put message into duplicateCheck array
-								duplicateCheck[in]=omfMessage.getMessageId();
-								if(Proxy)
-								{
-									System.out.println("This is a resource proxy");
-								}
-								else
-								{
-									OMFHandler(omfMessage);
-								}
-								System.out.println(omfMessage.toString());
+						assert !omfMessage.isEmpty(); 
+						duplicateFlag = false;
+						for (int i = 0; i < duplicateCheck.length; i++) {	
+							if(omfMessage.getMessageId().equals(duplicateCheck[i]))	{
+								duplicateFlag = true;
+								break;
 							}
 						}
+
+						if (!duplicateFlag)	{
+							duplicateCheck[in] = omfMessage.getMessageId();
+							in = (in + 1) % duplicateCheck.length;
+							
+							if(isProxy)
+								System.out.println("This is a resource proxy");
+							else
+								OMFHandler(omfMessage);
+							
+							System.out.println(omfMessage.toString());
+						}
 					} catch (XmlPullParserException e) {
-						Log.e(TAG,"PullParser exception");
+						Log.e(TAG, "PullParser exception");
 					} catch (IOException e) {
-						Log.e(TAG,"IO exception");
+						Log.e(TAG, "IO exception");
 					}
 				}
 			}  
@@ -432,7 +418,7 @@ public class XMPPClass {
 			Log.d("SMACK","Connection reconnected");
 			if (flag){
 				if(!xmpp.isAuthenticated()){
-					XMPPLogin(xmpp,Username,Password);
+					XMPPLogin(xmpp,username,password);
 				}
 			}
 		}

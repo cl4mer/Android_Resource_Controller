@@ -9,6 +9,7 @@ import org.junit.Test;
 import org.xmlpull.v1.XmlPullParserException;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
+import com.omf.resourcecontroller.generator.Properties.KeyType;
 import com.omf.resourcecontroller.parser.XMPPParser;
 
 public class TestParser {
@@ -54,4 +55,53 @@ public class TestParser {
 		assertEquals(msg.getTs(), 1378982237);
 	}
 
+	@Test
+	public void test3() throws XmlPullParserException, IOException {
+		String toParse = 
+				"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+				+ "<inform xmlns=\"http://schema.mytestbed.net/omf/6.0/protocol\" mid=\"3ff462e5-430e-491c-b864-5367d802ade5\">\n"
+				+ "  <props>\n"
+				+ "    <status_type type=\"string\">APP_EVENT</status_type>\n"
+				+ "    <event type=\"string\">EXIT</event>\n"
+				+ "    <app type=\"string\">/bin/date</app>\n"
+				+ "    <exit_code type=\"integer\">0</exit_code>\n"
+				+ "    <msg type=\"integer\">0</msg>\n"
+				+ "    <state type=\"string\">stopped</state>\n"
+				+ "    <seq type=\"integer\">3</seq>\n"
+				+ "    <uid type=\"string\">11eb6a7a-c294-4d7d-8158-9e3f7ace5511</uid>\n"
+				+ "    <hrn type=\"string\">/bin/date</hrn>\n"
+				+ "  </props>\n"
+				+ "  <ts>1379506828</ts>\n"
+				+ "  <src>xmpp://11eb6a7a-c294-4d7d-8158-9e3f7ace5511@neuhaust-nb</src>\n"
+				+ "  <itype>STATUS</itype>\n"
+				+ "</inform>\n";
+		
+		OMFMessage msg = parser.XMLParse(toParse);
+		assertEquals(msg.getMessageId(), "3ff462e5-430e-491c-b864-5367d802ade5");
+		assertEquals(msg.getSrc(), "xmpp://11eb6a7a-c294-4d7d-8158-9e3f7ace5511@neuhaust-nb");
+		assertEquals(msg.getTs(), 1379506828);
+		assertEquals(msg.getProperties().getType("event"), KeyType.STRING);
+		assertEquals(msg.getProperties().getValue("event"), "EXIT");
+		assertEquals(msg.getProperties().getType("exit_code"), KeyType.INTEGER);
+		assertEquals(msg.getProperties().getValue("exit_code"), "0");
+	}
+
+	@Test
+	public void test4() throws XmlPullParserException, IOException {
+		String toParse = 
+				"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+				+ "<inform xmlns=\"http://schema.mytestbed.net/omf/6.0/protocol\" mid=\"38e4419b-9f36-49a0-942c-f5b275b71fe7\">\n"
+				+ "  <props>\n"
+				+ "    <membership type=\"array\">\n"
+				+ "      <it type=\"string\">xmpp://1d895ab5-01c2-4fa3-9427-d58a0de40fb7@neuhaust-nb</it>\n"
+				+ "    </membership>\n"
+				+ "  </props>\n"
+				+ "  <ts>1379501612</ts>\n"
+				+ "  <src>xmpp://rc-test-0001@neuhaust-nb</src>\n"
+				+ "  <itype>STATUS</itype>\n"
+				+ "</inform>\n";
+		
+		OMFMessage msg = parser.XMLParse(toParse);
+		assertEquals(KeyType.ARRAY, msg.getProperties().getType("membership"));
+	}
 }

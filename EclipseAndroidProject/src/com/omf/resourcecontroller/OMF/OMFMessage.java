@@ -1,18 +1,16 @@
 package com.omf.resourcecontroller.OMF;
 
-import java.util.HashMap;
-import java.util.Map;
-
 import com.omf.resourcecontroller.generator.IType;
 import com.omf.resourcecontroller.generator.MessageType;
+import com.omf.resourcecontroller.generator.Properties;
 
 public class OMFMessage {
 	private MessageType messageType;
 	private String messageId;
 	private long ts;
 	private String src;
-	Map<String, String> properties;
-	Map<String, String> guard;
+	Properties properties;
+	Properties guard;
 	private String protocolId;
 	private String topic;
 	private IType itype;
@@ -25,8 +23,8 @@ public class OMFMessage {
 		ts = -1;
 		src = null;
 		protocolId = null;
-		properties = new HashMap<String, String>();
-		guard = new HashMap<String, String>();
+		properties = null;
+		guard = null;
 	}
 
 	public String getTopic() {
@@ -37,8 +35,12 @@ public class OMFMessage {
 		this.topic = topic;
 	}
 	
-	public Map<String, String> getGuard() {
+	public Properties getGuard() {
 		return guard;
+	}
+
+	public void setGuard(Properties guard) {
+		this.guard = guard;
 	}
 
 	public void setMessageType(MessageType type) {
@@ -104,18 +106,17 @@ public class OMFMessage {
 	public void setProtocolId(String protocolId) {
 		this.protocolId = protocolId;
 	}
-
-	public void setProperty(String key, String value) {
-		this.properties.put(key, value);
-	}
 	
-	
-	public Map<String, String> getProperties() {		
+	public Properties getProperties() {
 		return this.properties;
 	}
 	
-	public String getProperty(String key) {
-		return this.properties.get(key);
+	public void setProperties(Properties p) {
+		this.properties = p;
+	}
+	
+	public boolean isEmpty() {
+		return messageType == null;
 	}
 	
 	public String toString() {
@@ -132,48 +133,5 @@ public class OMFMessage {
 			s+="Rtype: "+messageType+"\n";
 		
 		return s;
-	}
-	
-	/*
-	public boolean equals(String mid) {		
-		return this.messageId.equalsIgnoreCase(mid);
-	}
-	*/
-	
-	public boolean isEmpty()
-	{
-		return messageType == null;
-	}
-
-	/*
-	public void OMFCreate() {
-		//Code to create something
-		System.out.println(this.messageType);
-		return;
-	}
-	
-	public void OMFConfigure() {
-		//Code to configure something
-		System.out.println(this.messageType);
-		return;
-	}
-	
-	public void OMFRequest() {
-		//Code to reply to a certain request
-		System.out.println(this.messageType);
-		return;
-	}
-	
-	public void OMFInform() {
-		//Code to inform someone of something
-		System.out.println(this.messageType);
-		return;
-	}
-	
-	public void OMFRelease() {
-		//Code to inform someone of something
-		System.out.println(this.messageType);
-		return;
-	}
-	*/
+	}	
 }

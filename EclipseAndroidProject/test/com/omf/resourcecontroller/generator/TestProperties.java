@@ -13,8 +13,9 @@ public class TestProperties {
 
 	@Test
 	public void testProperties1() {
-		Properties p = new Properties(Properties.MessageType.PROPS, "ethz", "http://www.ethz.ch");
-		p.addKey("flag", true);
+		Properties p = new Properties(Properties.MessageType.PROPS);
+		p.setNamespace("ethz", "http://www.ethz.ch");
+		p.addKey("still-not-false", true);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}
@@ -22,11 +23,12 @@ public class TestProperties {
 	@Test
 	public void testProperties2() {
 		String[] values = { "hi", "ho" };
-		Properties p = new Properties(Properties.MessageType.PROPS, "ethz", "http://www.ethz.ch");
-		p.addKey("reason", "my_string_value");
-		p.addKey("point-seven-times-eight", 5.6);
-		p.addKey("flag", true);
-		p.addKey("greetings", values, Properties.KeyType.STRING);
+		Properties p = new Properties(Properties.MessageType.PROPS);
+		p.setNamespace("ethz", "http://www.ethz.ch");
+		p.addKey("some-string", "my_string_value");
+		p.addKey("seven-times-eight", 5.6);
+		p.addKey("not-false", true);
+		p.addKey("some-values", values, Properties.KeyType.STRING);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}
@@ -34,11 +36,24 @@ public class TestProperties {
 	@Test
 	public void testProperties3() {
 		Map<String, String> m = new HashMap<String, String>();
-		m.put("A", "value_for_keyA");
-		m.put("B", "true");
-		m.put("C", "123");
-		Properties p = new Properties(Properties.MessageType.PROPS, "ethz", "http://www.ethz.ch");
-		p.addKey("values", m, Properties.KeyType.STRING);
+		m.put("my-key", "value_for_keyA");
+		m.put("another-key", "true");
+		m.put("a-third-key", "123");
+		Properties p = new Properties(Properties.MessageType.PROPS);
+		p.setNamespace("ethz", "http://www.ethz.ch");
+		p.addKey("some-string-values", m, Properties.KeyType.STRING);
+		System.out.println(p.toString());
+		assertTrue(true);
+	}
+
+	@Test
+	public void testProperties4() {
+		Map<String, String> m = new HashMap<String, String>();
+		m.put("my-key", "value_for_keyA");
+		m.put("another-key", "true");
+		m.put("a-third-key", "123");
+		Properties p = new Properties(Properties.MessageType.PROPS);
+		p.addKey("some-string-values", m, Properties.KeyType.STRING);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}

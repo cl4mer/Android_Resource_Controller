@@ -2,16 +2,19 @@ package com.omf.resourcecontroller.parser;
 
 import java.io.IOException;
 import java.io.StringReader;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
-
-import android.util.Log;
-
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.generator.MessageType;
+import com.omf.resourcecontroller.generator.Properties;
+import com.omf.resourcecontroller.generator.Properties.KeyType;
 
 public class XMPPParser {
 	public static final String TAG = "XMPPParser";
@@ -22,6 +25,11 @@ public class XMPPParser {
     	PARSE_PROPS,
     	PARSE_TEXT,
     	PARSE_END_TAG,
+    	PARSE_PROPERTY_END_TAG,
+    	PARSE_PROPERTY_DATA,
+    	PARSE_HASH,
+    	PARSE_ARRAY,
+    	PARSE_ARRAY_VALUE,
     }
 
     private enum ExpectedText {
@@ -47,7 +55,7 @@ public class XMPPParser {
 		// TODO Find a better way to exit
 		System.exit(-1);
     }
-    @SuppressWarnings("unused")
+    
     private String parseStateToString(ParserState s) {
     	switch (s) {
     	case PARSE_MESSAGE_TYPE: return "PARSE_MESSAGE_TYPE";
@@ -55,6 +63,11 @@ public class XMPPParser {
     	case PARSE_PROPS: return "PARSE_PROPS";
     	case PARSE_TEXT: return "PARSE_TEXT";
     	case PARSE_END_TAG: return "PARSE_END_TAG";
+    	case PARSE_PROPERTY_END_TAG: return "PARSE_PROPERTY_END_TAG";
+    	case PARSE_PROPERTY_DATA:return "PARSE_PROPERTY_DATA";
+    	case PARSE_HASH:return "PARSE_HASH";
+    	case PARSE_ARRAY:return "PARSE_ARRAY";
+    	case PARSE_ARRAY_VALUE:return "PARSE_ARRAY_VALUE";
     	}
     	return "PARSE_UNKNOWN";
     }
@@ -95,11 +108,14 @@ public class XMPPParser {
 		//Set input
 		xpp.setInput ( new StringReader ( xmlString) );
 
-		String propsNamespace = null;
-		String propsNamespaceUrl = null;
-		String guardNamespace = null;
-		String guardNamespaceUrl = null;
+		Properties props = null;
 		String propsOrGuardTag = null;
+		KeyType currentKeyType = null;
+		String propertyName = null;
+		String propertyValue = null;
+		List<String> arrayValue = null;
+		Map<String, String> hashValue = null;
+		
 		ExpectedText expectedText = ExpectedText.EXPECT_NONE;
 
 		int eventType = xpp.getEventType();
@@ -162,8 +178,14 @@ public class XMPPParser {
 					String tag = xpp.getName();
 
 					if (tag.equalsIgnoreCase("props") || tag.equalsIgnoreCase("guard")) {
+						if (tag.equalsIgnoreCase("props") && message.getProperties() != null)
+							failParse("Duplicate <props>");
+						else if (tag.equalsIgnoreCase("guard") && message.getGuard() != null)
+							failParse("Duplicate <guard>");
+						
 						propsOrGuardTag = tag;
-
+						
+						props = new Properties(tag.equalsIgnoreCase("props") ? Properties.MessageType.PROPS : Properties.MessageType.GUARD);
 						String namespace = null;
 						String namespaceUrl = null;
 
@@ -171,23 +193,12 @@ public class XMPPParser {
 							if (xpp.getAttributeNamespace(i).equalsIgnoreCase("xmlns")) {
 								if (namespace != null || namespaceUrl != null)
 									failParse("Already have namespace in element \"" + propsOrGuardTag + "\"");
-								else {
-									namespace = xpp.getAttributeName(i);
-									namespaceUrl = xpp.getAttributeValue(i);
-								}
+								else
+									props.setNamespace(namespace, namespaceUrl);
 							} else
 								failParse("Element \"" + propsOrGuardTag + "\" has attribute \"" 
-										+ xpp.getAttributeName(i) + "\"without xmlns namespace");
-
-						}
-
-						if (propsOrGuardTag.equalsIgnoreCase("props")) {
-							propsNamespace = namespace;
-							propsNamespaceUrl = namespaceUrl;
-						} else {
-							guardNamespace = namespace;
-							guardNamespaceUrl = namespaceUrl;
-						}
+										+ xpp.getAttributeName(i) + "\" without xmlns namespace");
+						}						
 						state = ParserState.PARSE_PROPS;
 					} else if (tag.equalsIgnoreCase("src")) {
 						expectedText = ExpectedText.EXPECT_SRC;
@@ -255,7 +266,6 @@ public class XMPPParser {
 				break;
 				
 			case PARSE_PROPS:
-				// FIXME This code just skips over props
 				if (eventType == XmlPullParser.END_TAG 
 					&& (xpp.getName().equalsIgnoreCase("props") || xpp.getName().equalsIgnoreCase("guard"))) {
 					if (!propsOrGuardTag.equalsIgnoreCase(xpp.getName()))
@@ -263,8 +273,107 @@ public class XMPPParser {
 						// it doesn't hurt to check anyway.  Also note that <props> and <guard>
 						// cannot be nested (otherwise this code would be wrong).
 						failParse("<" + propsOrGuardTag + "> ended with </" + xpp.getName() + ">");
+					if (propsOrGuardTag.equalsIgnoreCase("props"))
+						message.setProperties(props);
+					else
+						message.setGuard(props);
+					currentKeyType = null;
 					state = ParserState.PARSE_MESSAGE_DATA;
+				} else if (eventType == XmlPullParser.START_TAG) {
+					propertyName = xpp.getName();
+					for (int i = 0; i < xpp.getAttributeCount(); i++) {
+						if (xpp.getAttributeName(i).equalsIgnoreCase("type")) {
+							// Gives a warning, but how can I force "C" locale?  -- neuhaus
+							// Also, how come we have equalsIgnoreCase() independent of
+							// locale, but not toLowerCase()?  -- neuhaus
+							String attribute = xpp.getAttributeValue(i).toLowerCase();
+							if (attribute.equals("string"))
+								currentKeyType = KeyType.STRING;
+							else if (attribute.equals("fixnum"))
+								currentKeyType = KeyType.FIXNUM;
+							else if (attribute.equals("integer"))
+								currentKeyType = KeyType.INTEGER;
+							else if (attribute.equals("symbol"))
+								currentKeyType = KeyType.SYMBOL;
+							else if (attribute.equals("boolean"))
+								currentKeyType = KeyType.BOOLEAN;
+							else if (attribute.equals("hash"))
+								currentKeyType = KeyType.HASH;
+							else if (attribute.equals("array"))
+								currentKeyType = KeyType.ARRAY;
+							else
+								failParse("Unknown <props> element type \"" + attribute + "\"");
+						}
+					}
+					
+					if (currentKeyType == KeyType.HASH) {
+						hashValue = new HashMap<String, String>();
+						state = ParserState.PARSE_HASH;
+					} else if (currentKeyType == KeyType.ARRAY) {
+						arrayValue = new LinkedList<String>();
+						state = ParserState.PARSE_ARRAY;
+					} else
+						state = ParserState.PARSE_PROPERTY_DATA;
 				}
+				break;
+				
+			case PARSE_HASH:
+				if (eventType == XmlPullParser.END_TAG && xpp.getName().equalsIgnoreCase(propertyName)) {
+					currentKeyType = null;
+					state = ParserState.PARSE_PROPS;
+				}
+				break;
+
+			case PARSE_ARRAY:
+				if (eventType == XmlPullParser.END_TAG) {
+					if (xpp.getName().equalsIgnoreCase(propertyName)) {
+						props.addKey(propertyName, arrayValue.toArray(new String[arrayValue.size()]), KeyType.STRING);
+						currentKeyType = null;
+						state = ParserState.PARSE_PROPS;
+					} else if (xpp.getName().equalsIgnoreCase("it"))
+						; // empty
+					else
+						failParse("Unknown end tag </" + xpp.getName() + "> in array");
+				} else if (eventType == XmlPullParser.START_TAG) {
+					if (xpp.getName().equalsIgnoreCase("it"))
+						state = ParserState.PARSE_ARRAY_VALUE;
+					else
+						failParse("Unknown element <" + xpp.getName() + "> in array");
+				}
+				break;
+				
+			case PARSE_ARRAY_VALUE:
+				if (eventType == XmlPullParser.TEXT) {
+					arrayValue.add(xpp.getText());
+					state = ParserState.PARSE_ARRAY;
+				} else
+					failParse("Expected text tag, got " + eventTypeToString(eventType));
+				break;
+				
+			case PARSE_PROPERTY_DATA:
+				if (eventType == XmlPullParser.TEXT) {
+					propertyValue = xpp.getText();
+					state = ParserState.PARSE_PROPERTY_END_TAG;
+				} else
+					failParse("Expected text tag, got " + eventTypeToString(eventType));
+				break;
+
+			case PARSE_PROPERTY_END_TAG:
+				if (eventType == XmlPullParser.END_TAG) {
+					if (propertyName.equalsIgnoreCase(xpp.getName())) {
+						if (currentKeyType == KeyType.HASH)
+							;
+						else if (currentKeyType == KeyType.ARRAY)
+							;
+						else {
+							props.addKey(propertyName, currentKeyType, propertyValue);
+						}
+						state = ParserState.PARSE_PROPS;
+					} else
+						// Shouldn't happen
+						failParse("<" + propertyName + "> ended with </" + xpp.getName() + ">");
+				} else
+					failParse("Expected end tag, got " + eventTypeToString(eventType));
 				break;
 			}
 			

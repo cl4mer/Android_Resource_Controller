@@ -18,7 +18,8 @@ public class TestInformMessage {
 	@Test
 	public void testInform1() {
 		InformMessageMaker i = new InformMessageMaker("hi@ho:123", null, IType.creationOk, null);
-		Properties p = new Properties(MessageType.PROPS, "tik", "http://www.tik.ee.ethz.ch/");
+		Properties p = new Properties(MessageType.PROPS);
+		p.setNamespace("tik", "http://www.tik.ee.ethz.ch/");
 		p.addKey("slippermen-line-1", "I wandered lonely as a cloud");
 		p.addKey("slippermen-line-2", "Till I came upon this dirty street");
 		i.addProperties(p);
@@ -29,7 +30,8 @@ public class TestInformMessage {
 	@Test
 	public void testInform2() {
 		InformMessageMaker i = new InformMessageMaker("hi@ho:123", null, IType.creationOk, "bla@blubb:456");
-		Properties p = new Properties(MessageType.PROPS, "tik", "http://www.tik.ee.ethz.ch/");
+		Properties p = new Properties(MessageType.PROPS);
+		p.setNamespace("tik", "http://www.tik.ee.ethz.ch/");
 		p.addKey("slippermen-line-1", "I wandered lonely as a cloud");
 		p.addKey("slippermen-line-2", "Till I came upon this dirty street");
 		i.addProperties(p);

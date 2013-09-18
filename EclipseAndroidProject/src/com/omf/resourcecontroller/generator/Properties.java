@@ -1,42 +1,107 @@
 package com.omf.resourcecontroller.generator;
 
+import java.util.HashMap;
 import java.util.Map;
 
 public class Properties {
+	
 	public enum KeyType {
 		STRING,
 		FIXNUM,
+		INTEGER,
+		SYMBOL,
 		BOOLEAN,
 		HASH,
 		ARRAY,
 	}
 	
+	private class Key {
+		public KeyType type;
+		public Object value;
+		
+		public Key(boolean b) {
+			this.type = KeyType.BOOLEAN;
+			this.value = Boolean.toString(b);
+		}
+		
+		public Key(double d) {
+			this.type = KeyType.FIXNUM;
+			this.value = Double.toString(d);
+		}
+		
+		public Key(long l) {
+			this.type = KeyType.INTEGER;
+			this.value = Long.toString(l);
+		}
+		
+		public Key(String s) {
+			this.type = KeyType.STRING;
+			this.value = s;
+		}
+		
+		public Key(String value, KeyType type) {
+			this.type = type;
+			this.value = value;
+		}
+
+		public Key(String[] a, KeyType type) {
+			this.type = type;
+			this.value = a;
+		}
+		
+		public Key(Map<String, String> m, KeyType type) {
+			this.type = type;
+			this.value = m;
+		}
+
+		public boolean isSimple() {
+			return this.type == KeyType.STRING
+					|| this.type == KeyType.FIXNUM
+					|| this.type == KeyType.INTEGER
+					|| this.type == KeyType.SYMBOL
+					|| this.type == KeyType.BOOLEAN;
+		}
+
+		public boolean isCompound() {
+			return this.type == KeyType.HASH
+					|| this.type == KeyType.ARRAY;
+		}
+
+	}
+
 	public enum MessageType {
 		PROPS,
 		GUARD,
 	}
+
+	private Map<String, Key> elements;
 	
+	private MessageType messageType;
 	private String xmlns;
-	private StringBuffer buf;
+	private String url;
 	
-	public Properties(MessageType messageType, String xmlns, String url) {
+	public Properties(MessageType messageType) {
 		super();
-		this.buf = new StringBuffer();
-		this.xmlns = xmlns;
-		this.buf.append("  <").append(messageTypeToString(messageType))
-		    .append(" xmlns:").append(xmlns).append("=\"").append(url).append("\">\n");
+		
+		this.elements = new HashMap<String, Key>();
+		this.messageType = messageType;
+		this.xmlns = null;
+		this.url = null;
 	}
 
-	private void openKey(String keyName, KeyType type) {
-		buf.append("    <").append(xmlns).append(":").append(keyName)
-		   .append(" type=\"").append(keyTypeToString(type)).append("\">");
+	public void setNamespace(String xmlns, String url) {
+		this.xmlns = xmlns;
+		this.url = url;		
 	}
 	
-	private void closeKey(String keyName) {
-		buf.append("</").append(xmlns).append(":").append(keyName).append(">\n");
+	private String xmlnsKey() {
+		if (this.xmlns == null)
+			return "";
+		else
+			return this.xmlns + ":";
 	}
-
-	private String messageTypeToString(MessageType messageType) {
+	
+	private String messageTypeToString() {
 		switch (messageType) {
 		case PROPS: return "props";
 		case GUARD: return "guard";
@@ -49,6 +114,8 @@ public class Properties {
 		switch (keyType) {
 		case STRING: return "string";
 		case FIXNUM: return "fixnum";
+		case INTEGER: return "integer";
+		case SYMBOL: return "symbol";
 		case BOOLEAN: return "boolean";
 		case HASH: return "hash";
 		case ARRAY: return "array";
@@ -57,61 +124,99 @@ public class Properties {
 		return "unknown";
 	}
 
-	private String booleanToString(boolean b) {
-		return b ? "true" : "false";
+	public KeyType getType(String name) {
+		if (elements.containsKey(name))
+			return elements.get(name).type;
+		else
+			return null;
+	}
+	
+	public String getValue(String name) {
+		if (elements.containsKey(name)) {
+			Key k = elements.get(name);
+			if (k.isSimple())
+				return (String) k.value;
+			else
+				return null;
+		} else
+			return null;
+	}
+		
+	public void addKey(String name, KeyType type, String value) {
+		Key k = new Key(value, type);
+		elements.put(name, k);
+	}
+	
+	public void addKey(String name, boolean b) {
+		Key k = new Key(b);
+		elements.put(name, k);
+	}
+	
+	public void addKey(String name, double d) {
+		Key k = new Key(d);
+		elements.put(name, k);
+	}
+	
+	public void addKey(String name, String s) {
+		Key k = new Key(s);
+		elements.put(name, k);
+	}
+	
+	public void addKey(String name, String[] a, KeyType elementType) {
+		Key k = new Key(a, KeyType.ARRAY);
+		elements.put(name, k);
 	}
 
-	public void addKey(String keyName, boolean b) {
-		openKey(keyName, KeyType.BOOLEAN);
-		buf.append(booleanToString(b));
-		closeKey(keyName);
+	public void addKey(String name, Map<String, String> m, KeyType keyType) {
+		Key k = new Key(m, keyType);
+		elements.put(name, k);
 	}
 	
-	public void addKey(String keyName, double d) {
-		openKey(keyName, KeyType.FIXNUM);
-		buf.append(d);
-		closeKey(keyName);
-	}
-	
-	public void addKey(String keyName, String s) {
-		openKey(keyName, KeyType.STRING);
-		buf.append(s); // WARNING: No escaping?
-		closeKey(keyName);
-	}
-	
-	public void addKey(String keyName, String[] a, KeyType elementType) {
-		openKey(keyName, KeyType.ARRAY);
-		buf.append('\n');
-		addArray(a, elementType);
-		buf.append("    ");
-		closeKey(keyName);
-	}
-
-	public void addKey(String keyName, Map<String, String> m, KeyType keyType) {
-		openKey(keyName, KeyType.HASH);
-		buf.append('\n');
-		addHash(m, keyType);
-		buf.append("    ");
-		closeKey(keyName);
-	}
-	
-	private void addHash(Map<String, String> m, KeyType keyType) {
+	private void addHash(StringBuffer buf, Map<String, String> m, KeyType keyType) {
 		String type = keyTypeToString(keyType);
 		for (String k : m.keySet()) {
-			buf.append("      <key").append(k).append(" type=\"").append(type).append("\">")
-			   .append(m.get(k)).append("</key").append(k).append(">\n");
+			buf.append("      <").append(k).append(" type=\"").append(type).append("\">")
+			   .append(m.get(k)).append("</").append(k).append(">\n");
 		}
+		buf.append("    ");
 	}
 
-	private void addArray(String[] a, KeyType elementType) {
+	private void addArray(StringBuffer buf, String[] a, KeyType elementType) {
 		String type = keyTypeToString(elementType);
 		for (int i = 0; i < a.length; i++) {
 			buf.append("      <it type=\"").append(type).append("\">").append(a[i]).append("</it>\n");
 		}
+		buf.append("    ");
 	}
 	
 	public String toString() {
-		buf.append("  </props>\n");
+		StringBuffer buf = new StringBuffer();
+		
+		buf.append("  <").append(messageTypeToString());
+		if (xmlns != null)
+			buf.append(" xmlns:").append(xmlns).append("=\"").append(url).append("\">\n");
+		else
+			buf.append(">\n");
+		
+		for (String s : elements.keySet()) {
+			Key k = elements.get(s);
+
+			buf.append("    <").append(xmlnsKey()).append(s).append(" type=\"");
+			if (k.value instanceof String) {
+			   buf.append(keyTypeToString(k.type)).append("\">").append((String) k.value);
+			} else if (k.value instanceof String[]) {
+				buf.append(keyTypeToString(KeyType.ARRAY)).append("\">\n");
+				addArray(buf, (String[]) k.value, k.type);
+			} else if (k.value instanceof Map<?, ?>) {
+				buf.append(keyTypeToString(KeyType.HASH)).append("\">\n");
+				addHash(buf, (Map<String, String>) k.value, k.type);
+			}
+			
+			buf.append("</").append(xmlnsKey()).append(s).append(">\n");
+		}
+		
+		buf.append("  </").append(messageTypeToString()).append(">\n");
+		
 		return buf.toString();
 	}
 }
