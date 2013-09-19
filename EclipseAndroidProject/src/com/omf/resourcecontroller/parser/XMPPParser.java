@@ -1,3 +1,28 @@
+/* Copyright (c) 2013 ETH Zürich. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the names of ETH Zürich nor the names of other contributors 
+ *      may be used to endorse or promote products derived from this software 
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT 
+ * HOLDERBE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY 
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package com.omf.resourcecontroller.parser;
 
 import java.io.IOException;
@@ -50,11 +75,10 @@ public class XMPPParser {
     
     private static final String acceptedXMLNs = "http://schema.mytestbed.net/omf/6.0/protocol";
     
-    private void failParse(String message) {
+    private void failParse(String message) throws XMPPParseError {
 		//Log.e(TAG, message);
 		System.err.println(TAG + ": " + message);
-		// TODO Find a better way to exit
-		System.exit(-1);
+		throw new XMPPParseError(message);
     }
     
     private String parseStateToString(ParserState s) {
@@ -93,9 +117,10 @@ public class XMPPParser {
 	 * @param xmlString XML String 
 	 * @throws IOException 
 	 * @throws XmlPullParserException 
+     * @throws XMPPParseError 
 	 * @returns OMFMessage
 	 */
-	public OMFMessage XMLParse (String xmlString) throws XmlPullParserException, IOException {
+	public OMFMessage XMLParse (String xmlString) throws XmlPullParserException, IOException, XMPPParseError {
 		XmlPullParserFactory factory = XmlPullParserFactory.newInstance();		
 		OMFMessage message = new OMFMessage();
 		
@@ -319,6 +344,7 @@ public class XMPPParser {
 					if (xpp.getName().equalsIgnoreCase(propertyName)) {
 						props.addKey(propertyName, hashValue, KeyType.STRING);
 						currentKeyType = null;
+						hashValue = null;
 						state = ParserState.PARSE_PROPS;
 					} else if (xpp.getName().equalsIgnoreCase(hashKeyName))
 						; // empty
@@ -343,6 +369,7 @@ public class XMPPParser {
 				if (eventType == XmlPullParser.END_TAG) {
 					if (xpp.getName().equalsIgnoreCase(propertyName)) {
 						props.addKey(propertyName, arrayValue.toArray(new String[arrayValue.size()]), KeyType.STRING);
+						arrayValue = null;
 						currentKeyType = null;
 						state = ParserState.PARSE_PROPS;
 					} else if (xpp.getName().equalsIgnoreCase("it"))
@@ -381,9 +408,8 @@ public class XMPPParser {
 							;
 						else if (currentKeyType == KeyType.ARRAY)
 							;
-						else {
+						else
 							props.addKey(propertyName, propertyValue, currentKeyType);
-						}
 						state = ParserState.PARSE_PROPS;
 					} else
 						// Shouldn't happen
@@ -399,12 +425,12 @@ public class XMPPParser {
 		return message;
 	}
 
-	private void failIfUnequal(String actual, String expected) {
+	private void failIfUnequal(String actual, String expected) throws XMPPParseError {
 		if (!actual.equalsIgnoreCase(expected))
 			failParse("Expected \"" + expected + "\", got \"" + actual + "\"");
 	}
 
-	private void checkProtocolVersion(String xmlns) {
+	private void checkProtocolVersion(String xmlns) throws XMPPParseError {
 		if (!xmlns.equalsIgnoreCase(acceptedXMLNs))
 			failParse("Expected \"" + acceptedXMLNs + "\", got \"" + xmlns + "\"");
 	}	

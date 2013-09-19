@@ -23,34 +23,25 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.omf.resourcecontroller.generator;
+package com.omf.resourcecontroller.parser;
 
-import static org.junit.Assert.*;
+public class XMPPParseError extends Exception {
 
-import org.junit.Before;
-import org.junit.Test;
+	private static final long serialVersionUID = 3051989439154542755L;
 
-public class TestMessageIDGenerator {
-
-	@Before
-	public void setUp() {
-		MessageIDGenerator.clearPrefix();
-		MessageIDGenerator.setPrefix("com.omf.android.test@1234.");
-	}
-	
-	@Test
-	public void testMessageIDGenerator1() {
-		System.out.println(MessageIDGenerator.nextId());
-		assertTrue(true);
+	public XMPPParseError() {
 	}
 
-	@Test
-	public void testMessageIDGenerator2() {
-		System.out.println(MessageIDGenerator.nextId());
-		System.out.println(MessageIDGenerator.nextId());
-		System.out.println(MessageIDGenerator.nextId());
-		System.out.println(MessageIDGenerator.nextId());
-		assertTrue(true);
+	public XMPPParseError(String detailMessage) {
+		super(detailMessage);
+	}
+
+	public XMPPParseError(Throwable throwable) {
+		super(throwable);
+	}
+
+	public XMPPParseError(String detailMessage, Throwable throwable) {
+		super(detailMessage, throwable);
 	}
 
 }
