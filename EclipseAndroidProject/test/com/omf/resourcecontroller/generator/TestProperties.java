@@ -7,6 +7,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.omf.resourcecontroller.generator.Properties;
+import com.omf.resourcecontroller.generator.Properties.KeyType;
+
 import org.junit.Test;
 
 public class TestProperties {
@@ -15,7 +17,7 @@ public class TestProperties {
 	public void testProperties1() {
 		Properties p = new Properties(Properties.MessageType.PROPS);
 		p.setNamespace("ethz", "http://www.ethz.ch");
-		p.addKey("still-not-false", true);
+		p.addKey("still-not-false", "true", KeyType.BOOLEAN);
 		System.out.println(p.toString());
 		assertTrue(true);
 	}
@@ -25,9 +27,9 @@ public class TestProperties {
 		String[] values = { "hi", "ho" };
 		Properties p = new Properties(Properties.MessageType.PROPS);
 		p.setNamespace("ethz", "http://www.ethz.ch");
-		p.addKey("some-string", "my_string_value");
-		p.addKey("seven-times-eight", 5.6);
-		p.addKey("not-false", true);
+		p.addKey("some-string", "my_string_value", KeyType.STRING);
+		p.addKey("seven-times-eight", "5.6", KeyType.FIXNUM);
+		p.addKey("not-false", "true", KeyType.BOOLEAN);
 		p.addKey("some-values", values, Properties.KeyType.STRING);
 		System.out.println(p.toString());
 		assertTrue(true);

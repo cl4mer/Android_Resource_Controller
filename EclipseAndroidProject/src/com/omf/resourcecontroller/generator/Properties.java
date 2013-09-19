@@ -19,26 +19,6 @@ public class Properties {
 		public KeyType type;
 		public Object value;
 		
-		public Key(boolean b) {
-			this.type = KeyType.BOOLEAN;
-			this.value = Boolean.toString(b);
-		}
-		
-		public Key(double d) {
-			this.type = KeyType.FIXNUM;
-			this.value = Double.toString(d);
-		}
-		
-		public Key(long l) {
-			this.type = KeyType.INTEGER;
-			this.value = Long.toString(l);
-		}
-		
-		public Key(String s) {
-			this.type = KeyType.STRING;
-			this.value = s;
-		}
-		
 		public Key(String value, KeyType type) {
 			this.type = type;
 			this.value = value;
@@ -60,11 +40,6 @@ public class Properties {
 					|| this.type == KeyType.INTEGER
 					|| this.type == KeyType.SYMBOL
 					|| this.type == KeyType.BOOLEAN;
-		}
-
-		public boolean isCompound() {
-			return this.type == KeyType.HASH
-					|| this.type == KeyType.ARRAY;
 		}
 
 	}
@@ -141,34 +116,47 @@ public class Properties {
 		} else
 			return null;
 	}
+	
+	public String[] getArrayValue(String name) {
+		if (elements.containsKey(name)) {
+			Key k = elements.get(name);
+			if (k.type == KeyType.ARRAY)
+				return (String[]) k.value;
+			else
+				return null;
+		} else
+			return null;
 		
-	public void addKey(String name, KeyType type, String value) {
+	}
+
+	public Map<String, String> getHashValue(String name) {
+		if (elements.containsKey(name)) {
+			Key k = elements.get(name);
+			if (k.type == KeyType.HASH) {
+				@SuppressWarnings("unchecked")
+				Map<String, String> ret = (Map<String, String>) k.value; 
+				return ret;
+			} else
+				return null;
+		} else
+			return null;
+		
+	}
+
+	public void addKey(String name, String value, KeyType type) {
 		Key k = new Key(value, type);
 		elements.put(name, k);
 	}
 	
-	public void addKey(String name, boolean b) {
-		Key k = new Key(b);
-		elements.put(name, k);
-	}
-	
-	public void addKey(String name, double d) {
-		Key k = new Key(d);
-		elements.put(name, k);
-	}
-	
-	public void addKey(String name, String s) {
-		Key k = new Key(s);
-		elements.put(name, k);
-	}
-	
 	public void addKey(String name, String[] a, KeyType elementType) {
+		// FIXME: Handle element type
 		Key k = new Key(a, KeyType.ARRAY);
 		elements.put(name, k);
 	}
 
 	public void addKey(String name, Map<String, String> m, KeyType keyType) {
-		Key k = new Key(m, keyType);
+		// FIXME: Handle element type
+		Key k = new Key(m, KeyType.HASH);
 		elements.put(name, k);
 	}
 	
@@ -208,8 +196,10 @@ public class Properties {
 				buf.append(keyTypeToString(KeyType.ARRAY)).append("\">\n");
 				addArray(buf, (String[]) k.value, k.type);
 			} else if (k.value instanceof Map<?, ?>) {
+				@SuppressWarnings("unchecked")
+				Map<String, String> hash = (Map<String, String>) k.value;
 				buf.append(keyTypeToString(KeyType.HASH)).append("\">\n");
-				addHash(buf, (Map<String, String>) k.value, k.type);
+				addHash(buf, hash, k.type);
 			}
 			
 			buf.append("</").append(xmlnsKey()).append(s).append(">\n");

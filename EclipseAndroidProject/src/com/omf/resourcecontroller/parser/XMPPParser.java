@@ -28,6 +28,7 @@ public class XMPPParser {
     	PARSE_PROPERTY_END_TAG,
     	PARSE_PROPERTY_DATA,
     	PARSE_HASH,
+    	PARSE_HASH_VALUE,
     	PARSE_ARRAY,
     	PARSE_ARRAY_VALUE,
     }
@@ -113,6 +114,7 @@ public class XMPPParser {
 		KeyType currentKeyType = null;
 		String propertyName = null;
 		String propertyValue = null;
+		String hashKeyName = null;
 		List<String> arrayValue = null;
 		Map<String, String> hashValue = null;
 		
@@ -138,22 +140,21 @@ public class XMPPParser {
 						failParse("Unknown message type \"" + xpp.getName() + "\"");
 
 					for (int i = 0; i < xpp.getAttributeCount(); i++) {
-						String attribute = xpp.getAttributeName(i);
-						if (attribute.equalsIgnoreCase("xmlns")) {
+						if (xpp.getAttributeName(i).equalsIgnoreCase("xmlns")) {
 							checkProtocolVersion(xpp.getAttributeValue(i));
 							if (message.getProtocolId() == null)
 								message.setProtocolId(xpp.getAttributeValue(i));
 							else
 								failParse("Attribute \"xmlns\" set more than once (values \""
 										+ message.getProtocolId() + "\" and \"" + xpp.getAttributeValue(i) + ")");
-						} else if (attribute.equalsIgnoreCase("mid")) {
+						} else if (xpp.getAttributeName(i).equalsIgnoreCase("mid")) {
 							if (message.getMessageId() == null)
 								message.setMessageId(xpp.getAttributeValue(i));
 							else
 								failParse("Attribute \"mid\" set more than once (values \""
 										+ message.getMessageId() + "\" and \"" + xpp.getAttributeValue(i) + ")");
 						} else
-							failParse("Unknown attribute \"" + attribute + "\" for " + xpp.getName() + " message");
+							failParse("Unknown attribute \"" + xpp.getAttributeName(i) + "\" for " + xpp.getName() + " message");
 					}
 					
 					if (message.getMessageType() == MessageType.configure)
@@ -283,26 +284,22 @@ public class XMPPParser {
 					propertyName = xpp.getName();
 					for (int i = 0; i < xpp.getAttributeCount(); i++) {
 						if (xpp.getAttributeName(i).equalsIgnoreCase("type")) {
-							// Gives a warning, but how can I force "C" locale?  -- neuhaus
-							// Also, how come we have equalsIgnoreCase() independent of
-							// locale, but not toLowerCase()?  -- neuhaus
-							String attribute = xpp.getAttributeValue(i).toLowerCase();
-							if (attribute.equals("string"))
+							if (xpp.getAttributeValue(i).equalsIgnoreCase("string"))
 								currentKeyType = KeyType.STRING;
-							else if (attribute.equals("fixnum"))
+							else if (xpp.getAttributeValue(i).equalsIgnoreCase("fixnum"))
 								currentKeyType = KeyType.FIXNUM;
-							else if (attribute.equals("integer"))
+							else if (xpp.getAttributeValue(i).equalsIgnoreCase("integer"))
 								currentKeyType = KeyType.INTEGER;
-							else if (attribute.equals("symbol"))
+							else if (xpp.getAttributeValue(i).equalsIgnoreCase("symbol"))
 								currentKeyType = KeyType.SYMBOL;
-							else if (attribute.equals("boolean"))
+							else if (xpp.getAttributeValue(i).equalsIgnoreCase("boolean"))
 								currentKeyType = KeyType.BOOLEAN;
-							else if (attribute.equals("hash"))
+							else if (xpp.getAttributeValue(i).equalsIgnoreCase("hash"))
 								currentKeyType = KeyType.HASH;
-							else if (attribute.equals("array"))
+							else if (xpp.getAttributeValue(i).equalsIgnoreCase("array"))
 								currentKeyType = KeyType.ARRAY;
 							else
-								failParse("Unknown <props> element type \"" + attribute + "\"");
+								failParse("Unknown <props> element type \"" + xpp.getAttributeValue(i) + "\"");
 						}
 					}
 					
@@ -318,10 +315,28 @@ public class XMPPParser {
 				break;
 				
 			case PARSE_HASH:
-				if (eventType == XmlPullParser.END_TAG && xpp.getName().equalsIgnoreCase(propertyName)) {
-					currentKeyType = null;
-					state = ParserState.PARSE_PROPS;
+				if (eventType == XmlPullParser.END_TAG) {
+					if (xpp.getName().equalsIgnoreCase(propertyName)) {
+						props.addKey(propertyName, hashValue, KeyType.STRING);
+						currentKeyType = null;
+						state = ParserState.PARSE_PROPS;
+					} else if (xpp.getName().equalsIgnoreCase(hashKeyName))
+						; // empty
+					else
+						failParse("In hash: <" + hashKeyName + "> ended by </" + xpp.getName() + ">");
+				} else if (eventType == XmlPullParser.START_TAG) {
+					hashKeyName = xpp.getName();
+					state = ParserState.PARSE_HASH_VALUE;
 				}
+				break;
+
+			case PARSE_HASH_VALUE:
+				// FIXME: Handle "type" attribute
+				if (eventType == XmlPullParser.TEXT) {
+					hashValue.put(hashKeyName, xpp.getText());
+					state = ParserState.PARSE_HASH;
+				} else
+					failParse("Expected text tag, got " + eventTypeToString(eventType));
 				break;
 
 			case PARSE_ARRAY:
@@ -343,6 +358,7 @@ public class XMPPParser {
 				break;
 				
 			case PARSE_ARRAY_VALUE:
+				// FIXME: Handle "type" attribute
 				if (eventType == XmlPullParser.TEXT) {
 					arrayValue.add(xpp.getText());
 					state = ParserState.PARSE_ARRAY;
@@ -366,7 +382,7 @@ public class XMPPParser {
 						else if (currentKeyType == KeyType.ARRAY)
 							;
 						else {
-							props.addKey(propertyName, currentKeyType, propertyValue);
+							props.addKey(propertyName, propertyValue, currentKeyType);
 						}
 						state = ParserState.PARSE_PROPS;
 					} else

@@ -1,8 +1,11 @@
 package com.omf.resourcecontroller.parser;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
+import java.util.Map;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -10,7 +13,6 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.generator.Properties.KeyType;
-import com.omf.resourcecontroller.parser.XMPPParser;
 
 public class TestParser {
 
@@ -103,5 +105,33 @@ public class TestParser {
 		
 		OMFMessage msg = parser.XMLParse(toParse);
 		assertEquals(KeyType.ARRAY, msg.getProperties().getType("membership"));
+		String[] a = msg.getProperties().getArrayValue("membership");
+		assertEquals(1, a.length);
+		assertEquals("xmpp://1d895ab5-01c2-4fa3-9427-d58a0de40fb7@neuhaust-nb", a[0]);
+	}
+
+	@Test
+	public void test5() throws XmlPullParserException, IOException {
+		String toParse = 
+				"<?xml version=\"1.0\" encoding=\"utf-8\"?>\n"
+				+ "<inform xmlns=\"http://schema.mytestbed.net/omf/6.0/protocol\" mid=\"38e4419b-9f36-49a0-942c-f5b275b71fe7\">\n"
+				+ "  <props>\n"
+				+ "    <membership type=\"hash\">\n"
+				+ "      <test type=\"string\">a test</test>\n"
+				+ "    </membership>\n"
+				+ "  </props>\n"
+				+ "  <ts>1379501612</ts>\n"
+				+ "  <src>xmpp://rc-test-0001@neuhaust-nb</src>\n"
+				+ "  <itype>STATUS</itype>\n"
+				+ "</inform>\n";
+		
+		OMFMessage msg = parser.XMLParse(toParse);
+		assertEquals(KeyType.HASH, msg.getProperties().getType("membership"));
+		
+		Map<String, String> m = msg.getProperties().getHashValue("membership");
+		assertEquals(1, m.keySet().size());
+		assertTrue(m.containsKey("test"));
+		assertEquals("a test", m.get("test"));
+		assertFalse(m.containsKey("no-test"));
 	}
 }
