@@ -212,11 +212,10 @@ public class XMPPClass {
 	
 	private LeafNode createTopic(String topicName, boolean isProxy) {
 		if(connection.isAuthenticated()){
-			LeafNode eventNode = null;
 			ItemEventCoordinator eventListener = null;
 			boolean nodeCreated = false;
+			LeafNode eventNode = findTopic(topicName);
 			
-			eventNode = findTopic(topicName); 
 			if (eventNode == null) {
 				try {
 					ConfigureForm f = new ConfigureForm(FormType.submit);
@@ -228,24 +227,21 @@ public class XMPPClass {
 					
 					Log.d(TAG, "Creating node " + topicName);
 					eventNode = (LeafNode) pubmgr.createNode(topicName, f);
-					nodes.put(topicName, eventNode);
-					nodeCreated = true;
 				} catch (XMPPException e) {
 					Log.e(TAG, "Problem creating event " + topicName + ": " + e.getMessage());
 				}
 			}
 
-			if (!nodeCreated)
-				return null;
-
-			try {
+			if (eventNode != null) {
 				eventListener = new ItemEventCoordinator(isProxy);
 				eventNode.addItemEventListener(eventListener);
-				subscriptions.put(topicName, eventListener);
-
-				eventNode.subscribe(connection.getUser());
-			} catch (XMPPException e) {
-				Log.e(TAG, "Problem subscribing to topic " + topicName + ": " + e.getMessage());
+				
+				try {
+					eventNode.subscribe(connection.getUser());
+					subscriptions.put(topicName, new Subscription(topicName, eventNode, eventListener));
+				} catch (XMPPException e) {
+					Log.e(TAG, "Problem subscribing to topic " + topicName + ": " + e.getMessage());
+				}
 			}
 			
 			return eventNode;
@@ -348,7 +344,7 @@ public class XMPPClass {
 
 	public void destroySingleTopic(String topicName){
 		Node node = nodes.get(topicName); 
-		ItemEventCoordinator nodeListener = subscriptions.get(topicName);
+		ItemEventCoordinator nodeListener = subscriptions.get(topicName).getCoordinator();
 		node.removeItemEventListener(nodeListener);
 		nodes.remove(topicName);
 	}
@@ -359,7 +355,7 @@ public class XMPPClass {
 
 		for (String key : nodes.keySet()) {
 			LeafNode node = nodes.get(key);
-			ItemEventCoordinator nodeListener = subscriptions.get(key);
+			ItemEventCoordinator nodeListener = subscriptions.get(key).getCoordinator();
 			node.removeItemEventListener(nodeListener);
 			try {
 				pubmgr.deleteNode(key);
