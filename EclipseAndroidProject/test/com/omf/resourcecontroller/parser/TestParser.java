@@ -159,4 +159,31 @@ public class TestParser {
 		assertEquals("a test", m.get("test"));
 		assertFalse(m.containsKey("no-test"));
 	}
+	
+	@Test
+	public void test6() throws XmlPullParserException, IOException, XMPPParseError {
+		String toParse = 
+				"<item>\n"
+				+ "<inform xmlns=\"http://schema.mytestbed.net/omf/6.0/protocol\" mid=\"38e4419b-9f36-49a0-942c-f5b275b71fe7\">\n"
+				+ "  <props>\n"
+				+ "    <membership type=\"hash\">\n"
+				+ "      <test type=\"string\">a test</test>\n"
+				+ "    </membership>\n"
+				+ "  </props>\n"
+				+ "  <ts>1379501612</ts>\n"
+				+ "  <src>xmpp://rc-test-0001@neuhaust-nb</src>\n"
+				+ "  <itype>STATUS</itype>\n"
+				+ "</inform>\n"
+				+ "</item>\n";
+		
+		OMFMessage msg = parser.XMLParse(toParse);
+		assertEquals(KeyType.HASH, msg.getProperties().getType("membership"));
+		
+		Map<String, String> m = msg.getProperties().getHashValue("membership");
+		assertEquals(1, m.keySet().size());
+		assertTrue(m.containsKey("test"));
+		assertEquals("a test", m.get("test"));
+		assertFalse(m.containsKey("no-test"));
+	}
+
 }

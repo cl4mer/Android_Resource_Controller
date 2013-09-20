@@ -36,6 +36,8 @@ import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 
+import android.util.Log;
+
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.generator.MessageType;
 import com.omf.resourcecontroller.generator.Properties;
@@ -147,17 +149,23 @@ public class XMPPParser {
 
 		int eventType = xpp.getEventType();
 		while (eventType != XmlPullParser.END_DOCUMENT) {
-			
+
 			if (eventType == XmlPullParser.START_TAG)
-				System.err.println(parseStateToString(state) + ": <" + xpp.getName() + ">");
+				Log.d(TAG, parseStateToString(state) + ": <" + xpp.getName() + ">");
 			else if (eventType == XmlPullParser.END_TAG)
-				System.err.println(parseStateToString(state) + ": </" + xpp.getName() + ">");
+				Log.d(TAG, parseStateToString(state) + ": </" + xpp.getName() + ">");
 			else
-				System.err.println(parseStateToString(state) + ": " + eventTypeToString(eventType));
+				Log.d(TAG, parseStateToString(state) + ": " + eventTypeToString(eventType));
 			
 			switch (state) {
 			case PARSE_MESSAGE_TYPE:
 				if (eventType == XmlPullParser.START_TAG) {
+					// The XMPP layer gives us OMF messages inside <item>...</item>
+					// This code doesn't have any provision to check for </item>,
+					// just as it doesn't have these for </configure> etc.
+					if (xpp.getName().equalsIgnoreCase("item"))
+						break;
+
 					MessageType type = MessageType.fromString(xpp.getName());
 					if (type != null)
 						message.setMessageType(type);
@@ -421,7 +429,7 @@ public class XMPPParser {
 			
 			eventType = xpp.next();
 		}
-		
+		Log.d(TAG, "Parse done, returning " + message);
 		return message;
 	}
 

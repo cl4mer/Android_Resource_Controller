@@ -25,8 +25,10 @@
  */
 package com.omf.resourcecontroller.generator;
 
+import org.jivesoftware.smack.packet.PacketExtension;
 
-public class XMLMessageMaker {
+
+public class XMLMessageMaker implements PacketExtension {
 	private static final int protocolMajor = 6;
 	private static final int protocolMinor = 0;
 
@@ -40,10 +42,9 @@ public class XMLMessageMaker {
 		super();
 		this.type = type;
 		this.buf = new StringBuffer();
-		buf.append(xmlDeclaration).append("\n<").append(type.toString())
-		   .append(" xmlns=\"http://schema.mytestbed.net/omf/")
-		   .append(protocolMajor).append('.').append(protocolMinor)
-		   .append("/protocol\" mid=\"").append(MessageIDGenerator.nextId()).append("\">\n  <src>")
+		buf.append(xmlDeclaration).append("\n<").append(getElementName())
+		   .append(" xmlns=\"").append(getNamespace()).append("\" mid=\"")
+		   .append(MessageIDGenerator.nextId()).append("\">\n  <src>")
 		   .append(rid).append("</src>\n  <ts>").append(TimestampGenerator.getTimestamp()).append("</ts>\n");
 		if (topic != null)
 			buf.append("  <replyto>").append(topic).append("</replyto>\n");		
@@ -53,8 +54,19 @@ public class XMLMessageMaker {
 		return buf;
 	}
 	
-	public String getXMLMessage () {
-		buf.append("</").append(type.toString()).append(">\n");
+	@Override
+	public String getElementName() {
+		return type.toString();
+	}
+
+	@Override
+	public String getNamespace() {
+		return "http://schema.mytestbed.net/omf/" + protocolMajor + '.' + protocolMinor + "/protocol";
+	}
+
+	@Override
+	public String toXML() {
+		buf.append("</").append(getElementName()).append(">\n");
 		return buf.toString();
 	}
 

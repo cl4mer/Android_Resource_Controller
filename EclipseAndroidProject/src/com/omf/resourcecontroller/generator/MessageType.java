@@ -45,6 +45,10 @@ public class MessageType {
 		this.type = type;
 	}
 
+	public Type getType() {
+		return this.type;
+	}
+	
 	public String toString() {
 		switch(type) {
 		case INFORM: return "inform";

@@ -1,7 +1,6 @@
 package com.omf.resourcecontroller;
 
 
-
 import java.util.Iterator;
 import java.util.List;
 
@@ -20,7 +19,6 @@ import android.util.Log;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.OMF.XMPPClass;
-import com.omf.resourcecontroller.generator.MessageIDGenerator;
 
 public class BackgroundService extends Service {
 
@@ -37,7 +35,7 @@ public class BackgroundService extends Service {
 	OMFMessage omfMessage = null;
 	
 	//Username & password
-	private String UnamePass = null;
+	private String unamePass = null;
 	
 	//TopicName
 	private String topicName = null;
@@ -45,10 +43,7 @@ public class BackgroundService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
-	}
-	
-	// This is a test
-	
+	}	
 
 	@Override
 	public void onCreate() {
@@ -60,20 +55,17 @@ public class BackgroundService extends Service {
 		// TelephonyMgr
 		telephonyMgr = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);;
 		topicName = telephonyMgr.getDeviceId();
-		UnamePass = "android.omf."+topicName;
+		unamePass = "android.omf." + topicName;
 
-		MessageIDGenerator.setPrefix(UnamePass);	
-
-		test = new XMPPClass(UnamePass, UnamePass, topicName,  mHandler);
+		test = new XMPPClass(unamePass, unamePass, topicName,  mHandler);
 		//connection will be created internally in a separate thread.
-		test.XMPPCreateConnection(getApplicationContext());
+		test.connect(getApplicationContext());
 	}
 
 
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		// TODO Auto-generated method stub
 		return Service.START_STICKY;
 	}
 
@@ -118,14 +110,14 @@ public class BackgroundService extends Service {
 		notify.icon = R.drawable.resource_controller;
 
 		// The service is not running
-		if( !isServiceRunning(getApplicationContext(), ".BackgroundService") ){
+		if (!isServiceRunning(getApplicationContext(), ".BackgroundService")) {
 			Intent start = new Intent();
 			start.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION);
 			// Notification that does not redirect to other Activities
 			PendingIntent contentIntent = PendingIntent.getActivity(this, 0, start, PendingIntent.FLAG_UPDATE_CURRENT);
 			notify.setLatestEventInfo(BackgroundService.this, "Resource Controller", message, contentIntent);
 			notificationMgr.notify(R.string.app_notification_id, notify);
-		}else{	// The service is running
+		} else {	// The service is running
 			Intent start = new Intent(BackgroundService.this, StartUpActivity.class);
 			start.addFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 			// Notification that redirects to another Activity
@@ -139,7 +131,7 @@ public class BackgroundService extends Service {
 	/**
 	 *  The Handler that gets information back from the XMPP class
 	 */
-	private final Handler mHandler = new Handler() {
+	private static final Handler mHandler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
@@ -154,8 +146,7 @@ public class BackgroundService extends Service {
 		}
 	};
 
-	protected void processMessage(Object obj) {
-		// TODO Auto-generated method stub
-		
+	protected static void processMessage(Object obj) {
+		Log.i(TAG, "Got message!");
 	}
 }
