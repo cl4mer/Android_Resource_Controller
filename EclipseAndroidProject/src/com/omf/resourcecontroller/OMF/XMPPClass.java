@@ -29,7 +29,7 @@ import java.io.IOException;
 import java.util.HashMap;
 
 import org.jivesoftware.smack.AccountManager;
-import org.jivesoftware.smack.ConnectionConfiguration;
+import org.jivesoftware.smack.AndroidConnectionConfiguration;
 import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.SmackAndroid;
 import org.jivesoftware.smack.XMPPConnection;
@@ -48,6 +48,7 @@ import org.xmlpull.v1.XmlPullParserException;
 
 import android.content.Context;
 import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 import com.omf.resourcecontroller.Constants;
@@ -69,7 +70,7 @@ public class XMPPClass {
 
 	// XMPP variables
 	// 	XMPP CONNECTION VAR
-	private ConnectionConfiguration connConfig = null;		//  XMPP CONFIGURATION
+	private AndroidConnectionConfiguration connConfig = null;		//  XMPP CONFIGURATION
 	private PubSubManager pubmgr = null;					// 	XMPP PUB SUB MANAGER
 	//private Node eventNode = null;							// 	XMPP Eventnode
 
@@ -77,7 +78,7 @@ public class XMPPClass {
 	private String username = null;							//	Username for XMPP login
 	private String password = null;							//	Password for XMPP login
 	private String topic = null;
-	private XMPPConnection xmpp = null;
+	private XMPPConnection xmppConn = null;
 
 	//XMPP Parser 
 	private XMPPParser parser = null;
@@ -110,88 +111,94 @@ public class XMPPClass {
 		@Override
 		public void run() {
 			
+			Message msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);
 			//Open XMPP Connection
 			try{
-				xmpp.connect(); 				
+				xmppConn.connect(); 				
 				//Add connection listener
-				if(xmpp.isConnected()){
+				if(xmppConn.isConnected()){
 					Log.i(TAG,"XMPP connected");
 					connectionListener = new XMPPConnectionListener();
-					xmpp.addConnectionListener(connectionListener);
-				}
-
-				//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
-				PingManager.getInstanceFor(xmpp).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)
-			}catch(XMPPException e){
-				Log.e(TAG, "XMPP connection failed");
-				e.printStackTrace();
-				xmpp = null;
-			}
-
-			
-		}
-		
+					xmppConn.addConnectionListener(connectionListener);
+					
+					//Do Login
+					performXMPPLogin(xmppConn,username,password);		
+					//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
+					PingManager.getInstanceFor(xmppConn).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)
+					
+					msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_SUCCESS, -1, -1, null);		        	
+				}      				
+			}catch(XMPPException e){				
+				Log.e(TAG, "XMPP connection failed");				
+				xmppConn = null;
+			} finally {
+				msg.sendToTarget();
+			}			
+		}		
 	}
+	
+//	 connection.addPacketListener(new PacketListener() {
+//         @Override
+//         public void processPacket(Packet packet) {
+//
+//         }
+//     }, new PacketFilter() {
+//         @Override
+//         public boolean accept(Packet packet) {
+//             return true;
+//         }
+//     });
+	
+//	//Add pubsub manager
+//	
+//	//CreateTopic
+//	createTopic(topic, false);
+	
 
-	public XMPPConnection XMPPCreateConnection(Context appContext){
+	public void createConnection(Context appContext) {
 		//Init aSmack
 		SmackAndroid.init(appContext);
 		//SmackConfiguration.setDefaultPingInterval(100);	
-		// XMPP CONNECTION
-		connConfig = new ConnectionConfiguration(Constants.SERVER,Constants.PORT);
-		xmpp = new XMPPConnection(connConfig);
+		// XMPP CONNECTION		
+		try {
+			connConfig = new AndroidConnectionConfiguration(Constants.SERVER, Constants.PORT);		
+			connConfig.setReconnectionAllowed(false);
+			connConfig.setSendPresence(true);
+			xmppConn = new XMPPConnection(connConfig);
+			
+			Thread connectionThread = new Thread(new ConnectRunnable());
+			connectionThread.start();
+			
+		} catch (XMPPException e) {
+			 handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null).sendToTarget();
+		}
 		
-		Thread connectionThread = new Thread(new ConnectRunnable());
-		connectionThread.start();
-
-		//Do Login
-		XMPPLogin(xmpp,username,password);
-
-		//If xmpp is logged in declare your presence
-		if(xmpp.isAuthenticated()){
-			//Declare presence
-			Presence presence = new Presence(Presence.Type.available);
-			xmpp.sendPacket(presence);
-		}
-
-		//Add pubsub manager
-		if(xmpp.isAuthenticated())
-		{
-			pubmgr = new PubSubManager(xmpp);
-		}
-		//CreateTopic
-		createTopic(topic, false);
-
-		return xmpp;
 	}
 
-	public boolean XMPPLogin(XMPPConnection Xmpp, String username,String pass){
+	public boolean performXMPPLogin(XMPPConnection xmpp, String username,String pass) throws XMPPException{
 
-		if(Xmpp.isConnected()){
+		if(xmpp.isConnected()){
 			try {
 				//1st try
-				Xmpp.login(username, pass);
+				xmpp.login(username, pass);
 				Log.i(TAG,"XMPP Logged in");
-			} catch (XMPPException e) {
+			} 
+			catch (XMPPException e) {
 				Log.e(TAG, "XMPP login failed");
 				Log.i(TAG, "Creating new account");
 
-				try {
-					if(registerUser(Xmpp,username,pass)){
-						try {
-							Xmpp.login(username, pass);
-							flag=true;
-							Log.i(TAG,"XMPP Logged in");
-							return true;
-						} catch (XMPPException e1) {	
-							Log.e(TAG,"XMPP Login failed");
-							return false;
-						}	
-					}
-				} catch (XMPPException e1) {
-					Log.e(TAG,"Registration failed");
-					return false;
+				if(registerUser(xmpp,username,pass)){
+					try {
+						xmpp.login(username, pass);
+						flag=true;
+						Log.i(TAG,"XMPP Logged in");
+						return true;
+					} catch (XMPPException e1) {	
+						Log.e(TAG,"XMPP Login failed");
+						return false;
+					}	
 				}
+
 			}
 		}
 		return false;
@@ -201,12 +208,12 @@ public class XMPPClass {
 
 	public void createTopic(String topicName , boolean isProxy){
 
-		if(xmpp.isAuthenticated()){
+		if(xmppConn.isAuthenticated()){
+			pubmgr = new PubSubManager(xmppConn);
 			//New node
 			Node eventNode = null;
 			//New node listener
 			ItemEventCoordinator eventListener = null;
-
 
 			//Node configuration form
 			ConfigureForm f = new ConfigureForm(FormType.submit);
@@ -236,8 +243,6 @@ public class XMPPClass {
 
 				}
 			}
-
-
 			try {
 				//Add event listener
 				eventListener = new ItemEventCoordinator(isProxy);
@@ -246,7 +251,7 @@ public class XMPPClass {
 				nodeListeners.put(topicName, eventListener);
 
 				//Subscribe to the node
-				eventNode.subscribe(xmpp.getUser());
+				eventNode.subscribe(xmppConn.getUser());
 			} catch (XMPPException e) {
 				e.printStackTrace();
 			}
@@ -324,14 +329,14 @@ public class XMPPClass {
 	public void destroyConnection(){
 
 		//remove connection listener
-		xmpp.removeConnectionListener(connectionListener);
+		xmppConn.removeConnectionListener(connectionListener);
 
 		//destroy all topics and remove their listeners
 		destroyTopics();
-		if(xmpp != null)
-			xmpp.disconnect();
+		if(xmppConn != null)
+			xmppConn.disconnect();
 
-		xmpp = null;
+		xmppConn = null;
 	}
 
 	public void destroySingleTopic(String topicName){
@@ -374,7 +379,7 @@ public class XMPPClass {
 		private boolean duplicateFlag;
 		private int in;
 		private boolean isProxy;
-		
+
 		public ItemEventCoordinator(boolean isProxy){
 			duplicateCheck = new String[nDuplicateMessageCheck];
 			duplicateFlag = false;
@@ -388,7 +393,7 @@ public class XMPPClass {
 		@Override
 		public void handlePublishedItems(ItemPublishEvent <PayloadItem> items) {
 			parser = new XMPPParser();
-			
+
 			for(PayloadItem item : items.getItems()) {
 				if (!items.isDelayed()) {
 					try {
@@ -406,12 +411,12 @@ public class XMPPClass {
 						if (!duplicateFlag)	{
 							duplicateCheck[in] = omfMessage.getMessageId();
 							in = (in + 1) % duplicateCheck.length;
-							
+
 							if(isProxy)
 								System.out.println("This is a resource proxy");
 							else
 								OMFHandler(omfMessage);
-							
+
 							System.out.println(omfMessage.toString());
 						}
 					} catch (XmlPullParserException e) {
@@ -445,8 +450,13 @@ public class XMPPClass {
 		public void reconnectionSuccessful() {
 			Log.d("SMACK","Connection reconnected");
 			if (flag){
-				if(!xmpp.isAuthenticated()){
-					XMPPLogin(xmpp,username,password);
+				if(!xmppConn.isAuthenticated()){
+					try {
+						performXMPPLogin(xmppConn,username,password);
+					} catch (XMPPException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			}
 		}

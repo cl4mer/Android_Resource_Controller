@@ -31,13 +31,13 @@ public class BackgroundService extends Service {
 	private TelephonyManager  telephonyMgr = null;
 	
 	
-	private XMPPClass test = null;
+	private XMPPClass xmppHelper = null;
 		
 	//OMF message object
 	OMFMessage omfMessage = null;
 	
 	//Username & password
-	private String UnamePass = null;
+	private String uNamePass = null;
 	
 	//TopicName
 	private String topicName = null;
@@ -56,17 +56,16 @@ public class BackgroundService extends Service {
 
 		// Notification manager Service
 		notificationMgr = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-
 		// TelephonyMgr
 		telephonyMgr = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);;
 		topicName = telephonyMgr.getDeviceId();
-		UnamePass = "android.omf."+topicName;
+		uNamePass = "android.omf."+topicName;
 
-		MessageIDGenerator.setPrefix(UnamePass);	
+		MessageIDGenerator.setPrefix(uNamePass);	
 
-		test = new XMPPClass(UnamePass, UnamePass, topicName,  mHandler);
+		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  mHandler);
 		//connection will be created internally in a separate thread.
-		test.XMPPCreateConnection(getApplicationContext());
+		xmppHelper.createConnection(getApplicationContext());
 	}
 
 
@@ -81,12 +80,11 @@ public class BackgroundService extends Service {
 	public void onDestroy() {
 		super.onDestroy();
 
-		if(test != null)
-			test.destroyConnection();
-
-		test = null;
-
+		if(xmppHelper  != null)
+			xmppHelper .destroyConnection();
+		xmppHelper  = null;
 		displayNotificationMessage("XMPP stopped");
+		
 		Log.i(TAG,"XMPP stopped");
 	}
 	
@@ -147,7 +145,10 @@ public class BackgroundService extends Service {
 
 			case Constants.MESSAGE_READ:  				
 				processMessage(msg.obj);					
-				break; 			
+				break; 	
+			case Constants.MESSAGE_CONNECTION_SUCCESS:  				
+						
+				break; 	
 				
 			
 			}			
@@ -158,4 +159,6 @@ public class BackgroundService extends Service {
 		// TODO Auto-generated method stub
 		
 	}
+
+	
 }
