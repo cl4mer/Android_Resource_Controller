@@ -30,7 +30,13 @@
         <!-- SERVICES -->
         <service 
             android:name="com.omf.resourcecontroller.BackgroundService"
-            android:title="@string/title_activity_background_service" />
+            android:title="@string/title_activity_background_service" >
+            
+             <intent-filter>
+          		  <action android:name="com.omf.resourcecontroller.BackgroundService"/>
+       		 </intent-filter>
+            
+	    </service>            
         
     </application>
 
