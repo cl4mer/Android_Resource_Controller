@@ -23,39 +23,45 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-package com.omf.resourcecontroller.generator;
+package com.omf.resourcecontroller.OMF;
 
-import static org.junit.Assert.assertTrue;
+import org.jivesoftware.smackx.pubsub.LeafNode;
 
-import org.junit.Test;
+import com.omf.resourcecontroller.OMF.XMPPClass.ItemEventCoordinator;
 
-import com.omf.resourcecontroller.generator.Properties.KeyType;
-import com.omf.resourcecontroller.generator.Properties.MessageType;
-
-public class TestInformMessage {
-
-	@Test
-	public void testInform1() {
-		InformMessageMaker i = new InformMessageMaker("hi@ho:123", null, IType.creationOk, null);
-		Properties p = new Properties(MessageType.PROPS);
-		p.setNamespace("tik", "http://www.tik.ee.ethz.ch/");
-		p.addKey("slippermen-line-1", "I wandered lonely as a cloud", KeyType.STRING);
-		p.addKey("slippermen-line-2", "Till I came upon this dirty street", KeyType.STRING);
-		i.addProperties(p);
-		System.out.println(i.toXML());
-		assertTrue(true);
+public class Subscription {
+	private String topic;
+	private LeafNode node;
+	private ItemEventCoordinator coordinator;
+	
+	public Subscription(String topic, LeafNode node,
+			ItemEventCoordinator coordinator) {
+		super();
+		this.topic = topic;
+		this.node = node;
+		this.coordinator = coordinator;
 	}
 
-	@Test
-	public void testInform2() {
-		InformMessageMaker i = new InformMessageMaker("hi@ho:123", null, IType.creationOk, "bla@blubb:456");
-		Properties p = new Properties(MessageType.PROPS);
-		p.setNamespace("tik", "http://www.tik.ee.ethz.ch/");
-		p.addKey("slippermen-line-1", "I wandered lonely as a cloud", KeyType.STRING);
-		p.addKey("slippermen-line-2", "Till I came upon this dirty street", KeyType.STRING);
-		i.addProperties(p);
-		System.out.println(i.toXML());
-		assertTrue(true);
+	public Subscription(String topic, LeafNode node) {
+		super();
+		this.topic = topic;
+		this.node = node;
+		this.coordinator = null;
+	}
+	
+	public ItemEventCoordinator getCoordinator() {
+		return coordinator;
 	}
 
+	public void setCoordinator(ItemEventCoordinator coordinator) {
+		this.coordinator = coordinator;
+	}
+
+	public String getTopic() {
+		return topic;
+	}
+	
+	public LeafNode getNode() {
+		return node;
+	}
 }

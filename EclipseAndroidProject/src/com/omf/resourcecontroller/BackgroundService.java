@@ -1,7 +1,6 @@
 package com.omf.resourcecontroller;
 
 
-
 import java.util.Iterator;
 import java.util.List;
 
@@ -20,7 +19,6 @@ import android.util.Log;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.OMF.XMPPClass;
-import com.omf.resourcecontroller.generator.MessageIDGenerator;
 
 public class BackgroundService extends Service {
 
@@ -31,7 +29,7 @@ public class BackgroundService extends Service {
 	private TelephonyManager  telephonyMgr = null;
 	
 	
-	private XMPPClass xmppHelper = null;
+	XMPPClass xmppHelper = null;
 		
 	//OMF message object
 	OMFMessage omfMessage = null;
@@ -45,10 +43,7 @@ public class BackgroundService extends Service {
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
-	}
-	
-	// This is a test
-	
+	}	
 
 	@Override
 	public void onCreate() {
@@ -59,20 +54,22 @@ public class BackgroundService extends Service {
 		// TelephonyMgr
 		telephonyMgr = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);;
 		topicName = telephonyMgr.getDeviceId();
+
 		uNamePass = "android.omf."+topicName;
 
-		MessageIDGenerator.setPrefix(uNamePass);	
+		//MessageIDGenerator.setPrefix(uNamePass);	
 
 		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  mHandler);
 		//connection will be created internally in a separate thread.
 		xmppHelper.createConnection(getApplicationContext());
+		
+
 	}
 
 
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
-		// TODO Auto-generated method stub
 		return Service.START_STICKY;
 	}
 
@@ -81,7 +78,7 @@ public class BackgroundService extends Service {
 		super.onDestroy();
 
 		if(xmppHelper  != null)
-			xmppHelper .destroyConnection();
+			xmppHelper.destroyConnection();
 		xmppHelper  = null;
 		displayNotificationMessage("XMPP stopped");
 		
@@ -116,14 +113,14 @@ public class BackgroundService extends Service {
 		notify.icon = R.drawable.resource_controller;
 
 		// The service is not running
-		if( !isServiceRunning(getApplicationContext(), ".BackgroundService") ){
+		if (!isServiceRunning(getApplicationContext(), ".BackgroundService")) {
 			Intent start = new Intent();
 			start.addFlags(Intent.FLAG_ACTIVITY_NO_USER_ACTION);
 			// Notification that does not redirect to other Activities
 			PendingIntent contentIntent = PendingIntent.getActivity(this, 0, start, PendingIntent.FLAG_UPDATE_CURRENT);
 			notify.setLatestEventInfo(BackgroundService.this, "Resource Controller", message, contentIntent);
 			notificationMgr.notify(R.string.app_notification_id, notify);
-		}else{	// The service is running
+		} else {	// The service is running
 			Intent start = new Intent(BackgroundService.this, StartUpActivity.class);
 			start.addFlags(Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT | Intent.FLAG_ACTIVITY_SINGLE_TOP);
 			// Notification that redirects to another Activity
@@ -147,7 +144,10 @@ public class BackgroundService extends Service {
 				processMessage(msg.obj);					
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS:  				
-						
+				createTopic();
+				break; 	
+			case Constants.MESSAGE_CONNECTION_FAILED:  				
+				handleFailure();
 				break; 	
 				
 			
@@ -156,7 +156,16 @@ public class BackgroundService extends Service {
 	};
 
 	protected void processMessage(Object obj) {
+		Log.i(TAG, "Got message!");
+	}
+
+	protected void handleFailure() {
 		// TODO Auto-generated method stub
+		
+	}
+
+	protected void createTopic() {
+		xmppHelper.createTopic();
 		
 	}
 

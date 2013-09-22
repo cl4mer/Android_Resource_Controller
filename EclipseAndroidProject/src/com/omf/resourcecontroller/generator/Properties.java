@@ -124,6 +124,10 @@ public class Properties {
 		return "unknown";
 	}
 
+	public boolean containsKey(String name) {
+		return elements.containsKey(name);
+	}
+	
 	public KeyType getType(String name) {
 		if (elements.containsKey(name))
 			return elements.get(name).type;

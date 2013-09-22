@@ -1,8 +1,10 @@
 package com.omf.resourcecontroller;
 
 public interface Constants {
-	public static final String SERVER = "our local server address or server on the cloud";
+
+	public static final String SERVER = "172.30.42.162";
 	//public static final String TOPIC = "android";
+
 	public static final int PORT = 5222;
 	
 
