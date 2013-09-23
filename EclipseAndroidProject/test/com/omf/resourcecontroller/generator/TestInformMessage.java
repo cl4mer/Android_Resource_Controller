@@ -36,7 +36,7 @@ public class TestInformMessage {
 
 	@Test
 	public void testInform1() {
-		InformMessageMaker i = new InformMessageMaker("hi@ho:123", null, IType.creationOk, null);
+		InformXMLMessage i = new InformXMLMessage("hi@ho:123", null, IType.creationOk, null);
 		Properties p = new Properties(MessageType.PROPS);
 		p.setNamespace("tik", "http://www.tik.ee.ethz.ch/");
 		p.addKey("slippermen-line-1", "I wandered lonely as a cloud", KeyType.STRING);
@@ -48,7 +48,7 @@ public class TestInformMessage {
 
 	@Test
 	public void testInform2() {
-		InformMessageMaker i = new InformMessageMaker("hi@ho:123", null, IType.creationOk, "bla@blubb:456");
+		InformXMLMessage i = new InformXMLMessage("hi@ho:123", null, IType.creationOk, "bla@blubb:456");
 		Properties p = new Properties(MessageType.PROPS);
 		p.setNamespace("tik", "http://www.tik.ee.ethz.ch/");
 		p.addKey("slippermen-line-1", "I wandered lonely as a cloud", KeyType.STRING);

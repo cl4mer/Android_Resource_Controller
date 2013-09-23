@@ -25,11 +25,11 @@
  */
 package com.omf.resourcecontroller.generator;
 
-public class InformMessageMaker extends XMLMessageMaker {
+public class InformXMLMessage extends XMLMessage {
 
 	StringBuffer buf;
 	
-	public InformMessageMaker(String rid, String topic, IType type, String cid) {
+	public InformXMLMessage(String rid, String topic, IType type, String cid) {
 		super(MessageType.inform, rid, topic);
 		buf = getBuf();
 		addItype(type);

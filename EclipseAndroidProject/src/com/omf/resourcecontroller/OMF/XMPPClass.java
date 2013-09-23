@@ -27,6 +27,7 @@ package com.omf.resourcecontroller.OMF;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.Iterator;
 
 import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.AndroidConnectionConfiguration;
@@ -34,12 +35,12 @@ import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.SmackAndroid;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
+import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smackx.ping.PingManager;
 import org.jivesoftware.smackx.pubsub.ConfigureForm;
 import org.jivesoftware.smackx.pubsub.FormType;
 import org.jivesoftware.smackx.pubsub.ItemPublishEvent;
 import org.jivesoftware.smackx.pubsub.LeafNode;
-import org.jivesoftware.smackx.pubsub.Node;
 import org.jivesoftware.smackx.pubsub.PayloadItem;
 import org.jivesoftware.smackx.pubsub.PubSubManager;
 import org.jivesoftware.smackx.pubsub.PublishModel;
@@ -53,47 +54,39 @@ import android.util.Log;
 
 import com.omf.resourcecontroller.Constants;
 import com.omf.resourcecontroller.generator.IType;
-import com.omf.resourcecontroller.generator.InformMessageMaker;
+import com.omf.resourcecontroller.generator.InformXMLMessage;
 import com.omf.resourcecontroller.generator.Properties;
+import com.omf.resourcecontroller.generator.XMLMessage;
 import com.omf.resourcecontroller.parser.XMPPParseError;
 import com.omf.resourcecontroller.parser.XMPPParser;
 
 public class XMPPClass {
 
 	public static final String TAG = "XMPPClass";
+	
+	private AndroidConnectionConfiguration connConfig;
+	private PubSubManager pubmgr;
+	
+	private XMPPConnection xmppConn;
+	private XMPPConnectionListener connectionListener;							
+	private String username;
+	private String password;
+	private String fullJid;
 
-
-	// XMPP variables
-	// 	XMPP CONNECTION VAR
-	private AndroidConnectionConfiguration connConfig = null;		//  XMPP CONFIGURATION
-	private PubSubManager pubmgr = null;					// 	XMPP PUB SUB MANAGER
-	//private Node eventNode = null;							// 	XMPP Eventnode
-
-	private XMPPConnectionListener connectionListener = null;							
-	private String username = null;							//	Username for XMPP login
-	private String password = null;							//	Password for XMPP login
-	private String topic = null;
-	private XMPPConnection xmppConn = null;
-
-	//XMPP Parser 
-	private XMPPParser parser = null;
-
-	//OMF message object
-	private OMFMessage omfMessage = null;
 
 	HashMap<String, Subscription> subscriptions;
-	HashMap<String, LeafNode> nodes;
-	LeafNode myHomeNode = null; 
-	String myAddress = null;
+	LeafNode myHomeNode; 
+	String myAddress;
+	String myTopic;
 	
 	Handler handler;
 
 	public XMPPClass(String username, String password, String topic, Handler handler) {
 		this.subscriptions = new HashMap<String, Subscription>();
-		this.nodes = new HashMap<String, LeafNode>();
+		this.myTopic = topic;
 		this.username = username;
 		this.password = password;
-		this.topic = topic;		
+		this.fullJid = null;
 		this.handler = handler;
 
 	}
@@ -116,7 +109,16 @@ public class XMPPClass {
 					xmppConn.addConnectionListener(connectionListener);
 					
 					//Do Login
-					performXMPPLogin(xmppConn,username,password);		
+					performXMPPLogin(xmppConn, username, password);
+					
+					Iterator<Presence> i = xmppConn.getRoster().getPresences(username);
+					
+					while (i.hasNext()) {
+						Log.i(TAG, "Presence " + i.next().getFrom());
+					}
+					Presence p = xmppConn.getRoster().getPresence(username);
+					fullJid = p.getFrom();
+					
 					//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
 					PingManager.getInstanceFor(xmppConn).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)					
 					msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_SUCCESS, -1, -1, null);		        	
@@ -188,7 +190,7 @@ public class XMPPClass {
 		try {
 			ret = pubmgr.getNode(topic);
 			/* This won't do anything if the topic already exists. */
-			nodes.put(topic, ret);
+			//nodes.put(topic, ret);
 
 		} catch(XMPPException e) {
 			Log.e(TAG, "Problem getting node " + topic + "; trying to create");
@@ -247,20 +249,25 @@ public class XMPPClass {
 		return;
 	}
 	
-	public void createTopic() {
-		Log.i(TAG,"creating topic");
-		myHomeNode = createTopic(false);
+	public void createHomeTopic(String topic) {
+		Log.i(TAG, "creating home topic");
+		if (topic == null)
+			topic = myTopic;
+		myHomeNode = createTopic(topic, false);
 		myAddress = "xmpp://" + topic + "@" + Constants.SERVER;
+		Log.i(TAG, "home topic created");
 	}
 	
-	private LeafNode createTopic( boolean isProxy) {
+	private LeafNode createTopic(String topic, boolean isProxy) {
+		Log.i(TAG, "creating topic \"" + topic + "\"");
+		
 		if(xmppConn.isAuthenticated()){
 			pubmgr = new PubSubManager(xmppConn);
 			ItemEventCoordinator eventListener = null;
-			boolean nodeCreated = false;
 			LeafNode eventNode = findTopic(topic);		
 			
 			if (eventNode == null) {
+				Log.i(TAG, "topic \"" + topic + "\" not found, creating");
 				try {
 					ConfigureForm f = new ConfigureForm(FormType.submit);
 
@@ -272,7 +279,17 @@ public class XMPPClass {
 					Log.d(TAG, "Creating node " + topic);
 					eventNode = (LeafNode) pubmgr.createNode(topic, f);
 				} catch (XMPPException e) {
-					Log.e(TAG, "Problem creating event " + topic + ": " + e.getMessage());
+					Log.e(TAG, "Problem creating topic " + topic + ": " + e.getMessage());
+				}
+			} else {
+				Log.i(TAG, "topic \"" + topic + "\" found, subscribing");
+				
+				try {
+					org.jivesoftware.smackx.pubsub.Subscription s = eventNode.subscribe(fullJid);
+					Log.i(TAG, "subscribed to topic " + topic + " with status " + s.getState());
+				} catch (XMPPException e) {
+					Log.e(TAG, "Problem subscribing to existing topic " + topic + " with jid " + fullJid + ": " + e.getMessage());
+					Log.e(TAG, "XMPP error: " + e.getXMPPError());
 				}
 			}
 
@@ -309,14 +326,15 @@ public class XMPPClass {
 		
 		if (p.containsKey("membership")) {
 			String topic = topicFromMembership(p.getValue("membership")); 
-			LeafNode node = createTopic( false);
+			LeafNode node = createTopic(topic, false);
 			
 			if (node != null) {
-				InformMessageMaker maker = new InformMessageMaker(myAddress, null, IType.creationOk, message.getMessageId());
-				PayloadItem<InformMessageMaker> payload = new PayloadItem<InformMessageMaker>(maker);
+				InformXMLMessage inform = new InformXMLMessage(myAddress, null, IType.creationOk, message.getMessageId());
+				PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
 				node.publish(payload);
+				Log.i(TAG, "Membership messages published to newly subscribed topic");
 				myHomeNode.publish(payload);
-				Log.i(TAG, "Membership messages published");
+				Log.i(TAG, "Membership messages published to home node");
 			} else 
 				Log.e(TAG, "Can't subscribe to " + topic);
 		}
@@ -348,26 +366,30 @@ public class XMPPClass {
 	}
 
 	public void destroySingleTopic(String topic){
-		Node node = nodes.get(topic); 
-		ItemEventCoordinator nodeListener = subscriptions.get(topic).getCoordinator();
+		Subscription s = subscriptions.get(topic);
+		LeafNode node = s.getNode(); 
+		ItemEventCoordinator nodeListener = s.getCoordinator();
 		node.removeItemEventListener(nodeListener);
-		nodes.remove(topic);
+		subscriptions.remove(topic);
 	}
 
 	public void destroyTopics() {
 		
-		for (String key : nodes.keySet()) {
-			LeafNode node = nodes.get(key);
-			ItemEventCoordinator nodeListener = subscriptions.get(key).getCoordinator();
+		for (String topic : subscriptions.keySet()) {
+			Subscription s = subscriptions.get(topic);
+			LeafNode node = s.getNode();
+			ItemEventCoordinator nodeListener = s.getCoordinator();
 			node.removeItemEventListener(nodeListener);
 			try {
-				pubmgr.deleteNode(key);
+				pubmgr.deleteNode(topic);
 			} catch (XMPPException e) {
 				Log.e(TAG, "Node deletion problem");				
 			} catch (IllegalStateException e) {
 				Log.e(TAG, "Node deletion problem",e);				
 			}
 		}
+		
+		subscriptions.clear();
 	}
 
 
@@ -375,7 +397,7 @@ public class XMPPClass {
 	 * 
 	 * @author Polychronis
 	 */
-	class ItemEventCoordinator implements ItemEventListener<PayloadItem> {
+	class ItemEventCoordinator implements ItemEventListener<PayloadItem<XMLMessage>> {
 		private static final int nRecentMessageIDs = 10;
 
 		private String[] recentMessageIDs;
@@ -405,10 +427,10 @@ public class XMPPClass {
 	
 
 		@Override
-		public void handlePublishedItems(ItemPublishEvent<PayloadItem> items) {
+		public void handlePublishedItems(ItemPublishEvent<PayloadItem<XMLMessage>> items) {
 			XMPPParser parser = new XMPPParser();
 			
-			for(PayloadItem item : items.getItems()) {
+			for(PayloadItem<XMLMessage> item : items.getItems()) {
 				if (!items.isDelayed()) {
 					try {
 						Log.d(TAG, "Calling parser");

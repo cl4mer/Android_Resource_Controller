@@ -28,7 +28,7 @@ package com.omf.resourcecontroller.generator;
 import org.jivesoftware.smack.packet.PacketExtension;
 
 
-public class XMLMessageMaker implements PacketExtension {
+public class XMLMessage implements PacketExtension {
 	private static final int protocolMajor = 6;
 	private static final int protocolMinor = 0;
 
@@ -38,7 +38,7 @@ public class XMLMessageMaker implements PacketExtension {
 	private StringBuffer buf;
 	private MessageType type;
 	
-	public XMLMessageMaker(MessageType type, String rid, String topic) {
+	public XMLMessage(MessageType type, String rid, String topic) {
 		super();
 		this.type = type;
 		this.buf = new StringBuffer();

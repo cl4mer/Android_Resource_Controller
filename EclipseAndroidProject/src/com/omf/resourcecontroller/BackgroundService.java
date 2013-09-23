@@ -178,7 +178,7 @@ public class BackgroundService extends Service {
 				processMessage(msg.obj);					
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS:  				
-				createTopic();
+				createTopic(null);
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
 				handleFailure();
@@ -198,8 +198,8 @@ public class BackgroundService extends Service {
 		
 	}
 
-	protected void createTopic() {
-		xmppHelper.createTopic();
+	protected void createTopic(String topic) {
+		xmppHelper.createHomeTopic(topic);
 		
 	}
 
