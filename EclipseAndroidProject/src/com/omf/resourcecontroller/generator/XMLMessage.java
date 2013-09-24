@@ -32,8 +32,8 @@ public class XMLMessage implements PacketExtension {
 	private static final int protocolMajor = 6;
 	private static final int protocolMinor = 0;
 
-	public static final String messageEncoding = "utf-8";
-	private static final String xmlDeclaration = "<?xml version=\"1.0\" encoding=\"" + messageEncoding + "\"?>";
+	//public static final String messageEncoding = "utf-8";
+	//private static final String xmlDeclaration = "<?xml version=\"1.0\" encoding=\"" + messageEncoding + "\"?>";
 	
 	private StringBuffer buf;
 	private MessageType type;
@@ -42,7 +42,7 @@ public class XMLMessage implements PacketExtension {
 		super();
 		this.type = type;
 		this.buf = new StringBuffer();
-		buf.append(xmlDeclaration).append("\n<").append(getElementName())
+		buf/*.append(xmlDeclaration).append("\n")*/.append("<").append(getElementName())
 		   .append(" xmlns=\"").append(getNamespace()).append("\" mid=\"")
 		   .append(MessageIDGenerator.nextId()).append("\">\n  <src>")
 		   .append(rid).append("</src>\n  <ts>").append(TimestampGenerator.getTimestamp()).append("</ts>\n");

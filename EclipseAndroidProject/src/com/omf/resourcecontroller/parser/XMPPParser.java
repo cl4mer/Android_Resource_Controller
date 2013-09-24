@@ -133,7 +133,9 @@ public class XMPPParser {
 		factory.setNamespaceAware(true);
 		XmlPullParser xpp = factory.newPullParser();
 
-		//Set input
+		//xpp.setProperty(XmlPullParser.FEATURE_PROCESS_NAMESPACES, true);
+		//xpp.setProperty(XmlPullParser.FEATURE_REPORT_NAMESPACE_ATTRIBUTES, true);
+		
 		xpp.setInput ( new StringReader ( xmlString) );
 
 		Properties props = null;
@@ -220,19 +222,14 @@ public class XMPPParser {
 						propsOrGuardTag = tag;
 						
 						props = new Properties(tag.equalsIgnoreCase("props") ? Properties.MessageType.PROPS : Properties.MessageType.GUARD);
-						String namespace = null;
-						String namespaceUrl = null;
+						String namespace = xpp.getNamespacePrefix(0);
+						
+						if (namespace != null) {
+							Log.i(TAG, "Found namespace " + namespace);
+							props.setNamespace(namespace, xpp.getNamespaceUri(0));
+						}
 
-						for (int i = 0; i < xpp.getAttributeCount(); i++) {
-							if (xpp.getAttributeNamespace(i).equalsIgnoreCase("xmlns")) {
-								if (namespace != null || namespaceUrl != null)
-									failParse("Already have namespace in element \"" + propsOrGuardTag + "\"");
-								else
-									props.setNamespace(namespace, namespaceUrl);
-							} else
-								failParse("Element \"" + propsOrGuardTag + "\" has attribute \"" 
-										+ xpp.getAttributeName(i) + "\" without xmlns namespace");
-						}						
+						assert xpp.getAttributeCount() == 0;
 						state = ParserState.PARSE_PROPS;
 					} else if (tag.equalsIgnoreCase("src")) {
 						expectedText = ExpectedText.EXPECT_SRC;

@@ -3,9 +3,9 @@ package com.omf.resourcecontroller;
 public interface Constants {
 	// For Stephan's tests
 	//public static final String SERVER = "nitlab.inf.uth.gr";
-	//public static final String SERVICE_NAME = null;
+	public static final String SERVICE_NAME = null;
 	public static final String SERVER = "82.130.103.8";
-	public static final String SERVICE_NAME = "pubsub.82.130.103.8";
+	//public static final String SERVICE_NAME = "pubsub.82.130.103.8";
 	
 	// For Paolo's (and probably also Abdullah's) tests
 	//public static final String SERVER = "172.30.42.162";

@@ -94,6 +94,15 @@ public class Properties {
 		this.url = url;		
 	}
 	
+
+	public String getXmlns() {
+		return xmlns;
+	}
+
+	public String getUrl() {
+		return url;
+	}
+
 	private String xmlnsKey() {
 		if (this.xmlns == null)
 			return "";
@@ -179,13 +188,13 @@ public class Properties {
 	
 	public void addKey(String name, String[] a, KeyType elementType) {
 		// FIXME: Handle element type
-		Key k = new Key(a, KeyType.ARRAY);
+		Key k = new Key(a, KeyType.STRING);
 		elements.put(name, k);
 	}
 
 	public void addKey(String name, Map<String, String> m, KeyType keyType) {
 		// FIXME: Handle element type
-		Key k = new Key(m, KeyType.HASH);
+		Key k = new Key(m, KeyType.ARRAY);
 		elements.put(name, k);
 	}
 	
@@ -223,12 +232,12 @@ public class Properties {
 			   buf.append(keyTypeToString(k.type)).append("\">").append((String) k.value);
 			} else if (k.value instanceof String[]) {
 				buf.append(keyTypeToString(KeyType.ARRAY)).append("\">\n");
-				addArray(buf, (String[]) k.value, k.type);
+				addArray(buf, (String[]) k.value, KeyType.STRING);
 			} else if (k.value instanceof Map<?, ?>) {
 				@SuppressWarnings("unchecked")
 				Map<String, String> hash = (Map<String, String>) k.value;
 				buf.append(keyTypeToString(KeyType.HASH)).append("\">\n");
-				addHash(buf, hash, k.type);
+				addHash(buf, hash, KeyType.STRING);
 			}
 			
 			buf.append("</").append(xmlnsKey()).append(s).append(">\n");

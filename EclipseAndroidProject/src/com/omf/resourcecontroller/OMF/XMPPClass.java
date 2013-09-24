@@ -220,18 +220,21 @@ public class XMPPClass {
 		switch (message.getMessageType().getType()) {
 		case CREATE:
 			Log.d(TAG, "Received <create> message");
+			handleCreate(message);
 			break;
 		case CONFIGURE:
 			Log.d(TAG, "Received <configure> message");
 			handleConfigure(message);
 			break;
 		case REQUEST:
+			handleRequest(message);
 			Log.d(TAG, "Received <request> message");
 			break;
 		case INFORM:
 			Log.d(TAG, "Received <inform> message");
 			break;
 		case RELEASE:
+			handleRelease(message);
 			Log.d(TAG, "Received <release> message");
 			break;
 		}
@@ -312,6 +315,17 @@ public class XMPPClass {
 		}
 	}
 
+	private String[] getMemberships() {
+		String[] ret = new String[subscriptions.size() - 1];
+		int i = 0;
+		
+		for (String s : subscriptions.keySet()) {
+			if (!s.equals(myTopic))
+				ret[i++] = s;
+		}
+		return ret;
+	}
+
 	private void publishMembershipInformation(OMFMessage message, String topic) {
 		InformXMLMessage inform = new InformXMLMessage(xmppConn.getUser(), null, IType.creationOk, message.getMessageId());
 		
@@ -328,15 +342,34 @@ public class XMPPClass {
 		Log.i(TAG, "Membership messages published to home node");
 	}
 	
-	private String[] getMemberships() {
-		String[] ret = new String[subscriptions.size() - 1];
-		int i = 0;
+	private void handleCreate(OMFMessage message) {
+		Properties p = message.getProperties();
+		String what = p.getValue("type");
 		
-		for (String s : subscriptions.keySet()) {
-			if (!s.equals(myTopic))
-				ret[i++] = s;
-		}
-		return ret;
+		if (what != null) {
+			
+			Log.i(TAG, "Handling <create> message for \"" + what + "\"");
+			
+			if (what.equalsIgnoreCase("application")) {
+				Log.i(TAG, "Creating an application resource.");
+				String topic = topicFromMembership(p.getValue("membership"));
+				if (topic != null) {
+					subscribeTo(topic);
+					publishMembershipInformation(message, topic);
+				}
+			}
+		} else
+			Log.i(TAG, "No namespace in <props>, don't know what to do.");
+	}
+
+	private void handleRequest(OMFMessage message) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleRelease(OMFMessage message) {
+		// TODO Auto-generated method stub
+		
 	}
 
 	public class DisconnectRunnable implements Runnable {
@@ -451,7 +484,7 @@ public class XMPPClass {
 						} else 
 							Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is a duplicate");
 					} catch (XmlPullParserException e) {
-						Log.e(TAG, "PullParser exception");
+						Log.e(TAG, "PullParser exception: " + e.getMessage());
 					} catch (IOException e) {
 						Log.e(TAG, "IO exception");
 					} catch (XMPPParseError e) {
