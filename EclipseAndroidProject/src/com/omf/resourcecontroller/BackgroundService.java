@@ -199,7 +199,7 @@ public class BackgroundService extends Service {
 	}
 
 	protected void createTopic(String topic) {
-		xmppHelper.createHomeTopic(topic);
+		xmppHelper.createHomeTopic();
 		
 	}
 
