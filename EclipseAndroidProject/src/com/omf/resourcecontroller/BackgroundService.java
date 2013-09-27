@@ -215,8 +215,7 @@ public class BackgroundService extends Service {
 
     }
 
-    protected void handleFailure() {
-    	startRemoteOmfService();
+    protected void handleFailure() {    	
     }
 
 	protected void createTopic(String topic) {
