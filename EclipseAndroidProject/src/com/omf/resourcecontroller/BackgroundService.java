@@ -178,7 +178,7 @@ public class BackgroundService extends Service {
 				processMessage(msg.obj);					
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS:  				
-				createTopic(null);
+				resubscribe();
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
 				handleFailure();
@@ -187,21 +187,19 @@ public class BackgroundService extends Service {
 			
 			}			
 		}
+
 	};
 
 	protected void processMessage(Object obj) {
 		Log.i(TAG, "Got message!");
 	}
 
+	private void resubscribe() {
+		xmppHelper.resubscribe();
+	}
+
 	protected void handleFailure() {
 		// TODO Auto-generated method stub
 		
 	}
-
-	protected void createTopic(String topic) {
-		xmppHelper.createHomeTopic();
-		
-	}
-
-	
 }

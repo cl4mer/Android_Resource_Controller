@@ -37,14 +37,17 @@ public class XMLMessage implements PacketExtension {
 	
 	private StringBuffer buf;
 	private MessageType type;
+	private String messageId;
 	
 	public XMLMessage(MessageType type, String rid, String topic) {
 		super();
 		this.type = type;
+		
+		this.messageId = MessageIDGenerator.nextId();
 		this.buf = new StringBuffer();
 		buf/*.append(xmlDeclaration).append("\n")*/.append("<").append(getElementName())
 		   .append(" xmlns=\"").append(getNamespace()).append("\" mid=\"")
-		   .append(MessageIDGenerator.nextId()).append("\">\n  <src>")
+		   .append(messageId).append("\">\n  <src>")
 		   .append(rid).append("</src>\n  <ts>").append(TimestampGenerator.getTimestamp()).append("</ts>\n");
 		if (topic != null)
 			buf.append("  <replyto>").append(topic).append("</replyto>\n");		
@@ -70,4 +73,7 @@ public class XMLMessage implements PacketExtension {
 		return buf.toString();
 	}
 
+	public String getMessageId() {
+		return messageId;
+	}	
 }

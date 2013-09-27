@@ -27,6 +27,8 @@ package com.omf.resourcecontroller.OMF;
 
 import java.io.IOException;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.AndroidConnectionConfiguration;
@@ -71,7 +73,7 @@ public class XMPPClass {
 	private XMPPConnectionListener connectionListener;							
 	private String username;
 	private String password;
-
+	private String mappedResourceId;
 
 	HashMap<String, Subscription> subscriptions;
 	LeafNode myHomeNode; 
@@ -79,12 +81,14 @@ public class XMPPClass {
 	
 	Handler handler;
 
-	public XMPPClass(String username, String password, String topic, Handler handler) {
+	public XMPPClass(String username, String password, String rid, Handler handler) {
 		this.subscriptions = new HashMap<String, Subscription>();
-		this.myTopic = topic;
+		this.myTopic = rid;
+		this.mappedResourceId = "xmpp://" + rid + "@" + Constants.SERVER;
 		this.username = username;
 		this.password = password;
 		this.handler = handler;
+		this.myHomeNode = null;
 	}
 	
 	private class ConnectRunnable implements Runnable {
@@ -105,7 +109,7 @@ public class XMPPClass {
 					xmppConn.addConnectionListener(connectionListener);
 					
 					xmppLogin(xmppConn, username, password);
-					if (subscribeTo(myTopic) || createTopic(myTopic)) {
+					if (subscribeTo(null, myTopic) || createTopic(myTopic)) {
 						//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
 						PingManager.getInstanceFor(xmppConn).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)					
 						msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_SUCCESS, -1, -1, null);
@@ -279,7 +283,7 @@ public class XMPPClass {
 		return membership.replaceAll("xmpp://([^@]+)@.*", "$1");
 	}
 	
-	private boolean subscribeTo(String topic) {
+	private boolean subscribeTo(String cid, String topic) {
 		boolean ret = true;
 		
 		Log.i(TAG, "Subscribing to topic " + topic);
@@ -292,6 +296,10 @@ public class XMPPClass {
 			Log.e(TAG, "Problem subscribing to topic " + topic + ": " + e.getMessage());
 			ret = false;
 		}
+		
+		if (ret && cid != null)
+			publishMembershipInformation(cid, topic);
+
 		return ret;
 	}
 	
@@ -305,14 +313,40 @@ public class XMPPClass {
 		}
 		
 		if (p.containsKey("membership")) {
+			Log.i(TAG, "Configuring membership");
 			String topic = topicFromMembership(p.getValue("membership")); 
-			boolean subscribeSuccess = subscribeTo(topic);
-			
-			if (subscribeSuccess) {
-				publishMembershipInformation(message, topic);
-			} else 
+
+			//publishMembershipInformation(message.getMessageId(), null);
+
+			if (subscribeTo(message.getMessageId(), topic))
+				publishMembershipInformation(message.getMessageId(), topic);
+			 else 
 				Log.e(TAG, "Can't subscribe to " + topic);
+		} else if (p.containsKey("state")) {
+			if (messageAppliesToMe(message)) {
+				String desiredState = p.getValue("state");
+				if (desiredState.equalsIgnoreCase("running"))
+					startApplication();
+			}
 		}
+	}
+
+	private void startApplication() {
+		// TODO Auto-generated method stub
+		
+	}
+
+	/** Checks the guard inside a &lt;configure&gt; message to see if it applies to this RC.
+	 * 
+	 * This is only a very simplified version of a &lt;guard&gt; check
+	 * @param message the message containing the guard
+	 * @return true if the message applies to this RC, false if not
+	 */
+	private boolean messageAppliesToMe(OMFMessage message) {
+		Properties g = message.getGuard();
+		
+		return g.containsKey("type") && g.getValue("type").equalsIgnoreCase("application")
+				&& g.containsKey("name") && g.getValue("name").contains("twimight");
 	}
 
 	private String[] getMemberships() {
@@ -325,21 +359,31 @@ public class XMPPClass {
 		}
 		return ret;
 	}
-
-	private void publishMembershipInformation(OMFMessage message, String topic) {
-		InformXMLMessage inform = new InformXMLMessage(xmppConn.getUser(), null, IType.creationOk, message.getMessageId());
+	
+	private void publishMembershipInformation(String cid, String topic) {
+		Log.i(TAG, "Publishing membership info");
+		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, cid);
 		
 		Properties p = new Properties(MessageType.PROPS);
 		p.addKey("membership", getMemberships(), KeyType.STRING);
 		inform.addProperties(p);
-		
+
+		Log.i(TAG, "Message created");
+
 		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-		LeafNode node = subscriptions.get(topic).getNode();
-		
-		node.publish(payload);
-		Log.i(TAG, "Membership messages published to newly subscribed topic");
-		myHomeNode.publish(payload);
-		Log.i(TAG, "Membership messages published to home node");
+		Log.i(TAG, "Payload created");
+		subscriptions.get(myTopic).getNode().publish(payload);
+		Log.i(TAG, "Membership message published to home node");
+
+		if (topic != null) {
+			// Must be fresh
+			inform = new InformXMLMessage(mappedResourceId, null, IType.status, cid);
+			inform.addProperties(p);
+			
+			payload = new PayloadItem<InformXMLMessage>(inform);
+			subscriptions.get(topic).getNode().publish(payload);
+			Log.i(TAG, "Membership message published to newly subscribed node");
+		}
 	}
 	
 	private void handleCreate(OMFMessage message) {
@@ -352,14 +396,37 @@ public class XMPPClass {
 			
 			if (what.equalsIgnoreCase("application")) {
 				Log.i(TAG, "Creating an application resource.");
-				String topic = topicFromMembership(p.getValue("membership"));
-				if (topic != null) {
-					subscribeTo(topic);
-					publishMembershipInformation(message, topic);
-				}
+				createApplication(message.getMessageId(), p);
 			}
 		} else
-			Log.i(TAG, "No namespace in <props>, don't know what to do.");
+			Log.i(TAG, "No type in <props>, don't know what to do.");
+	}
+
+	private void createApplication(String cid, Properties p) {
+		String topic = topicFromMembership(p.getValue("membership"));
+		if (topic != null) {
+			subscribeTo(cid, topic);
+		}
+		
+		publishApplicationCreation(cid, topic);
+		
+	}
+
+	private void publishApplicationCreation(String cid, String topic) {
+		InformXMLMessage inform = new InformXMLMessage(xmppConn.getUser(), null, IType.creationOk, cid);
+		
+		Properties p = new Properties(MessageType.PROPS);
+		p.addKey("membership", getMemberships(), KeyType.STRING);
+		inform.addProperties(p);
+		
+		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
+		
+		LeafNode node = subscriptions.get(topic).getNode();
+		node.publish(payload);
+		Log.i(TAG, "Membership messages published to newly subscribed node");
+		
+		myHomeNode.publish(payload);
+		Log.i(TAG, "Membership messages published to home node");
 	}
 
 	private void handleRequest(OMFMessage message) {
@@ -457,6 +524,10 @@ public class XMPPClass {
 			return ret;
 		}
 	
+		private void addMessageId(String messageId) {
+			recentMessageIDs[in] = messageId;
+			in = (in + 1) % recentMessageIDs.length;
+		}
 
 		@Override
 		public void handlePublishedItems(ItemPublishEvent<PayloadItem<XMLMessage>> items) {
@@ -470,10 +541,10 @@ public class XMPPClass {
 
 						assert !omfMessage.isEmpty();
 						
-						if (isNewId(omfMessage.getMessageId()))	{
+						if (!sentByMe(omfMessage) && isNewId(omfMessage.getMessageId()))	{
 							Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is new");
-							recentMessageIDs[in] = omfMessage.getMessageId();
-							in = (in + 1) % recentMessageIDs.length;
+							
+							addMessageId(omfMessage.getMessageId());
 							
 							if (isProxy)
 								System.out.println("This is a resource proxy");
@@ -492,6 +563,10 @@ public class XMPPClass {
 					}
 				}
 			}  
+		}
+
+		private boolean sentByMe(OMFMessage omfMessage) {
+			return omfMessage.getSrc().equalsIgnoreCase(xmppConn.getUser());
 		}
 	}
 
@@ -513,7 +588,6 @@ public class XMPPClass {
 		}
 
 		public void reconnectionSuccessful() {
-
 			Log.d("SMACK","Connection reconnected");
 			if(!xmppConn.isAuthenticated()){
 				try {
@@ -531,12 +605,10 @@ public class XMPPClass {
 	}
 
 
-	public void createHomeTopic() {
+	public void resubscribe() {
 		// TODO Auto-generated method stub
 		
 	}
-
-
-
-			}
+	
+}
 

@@ -29,8 +29,8 @@ public class InformXMLMessage extends XMLMessage {
 
 	StringBuffer buf;
 	
-	public InformXMLMessage(String rid, String topic, IType type, String cid) {
-		super(MessageType.inform, rid, topic);
+	public InformXMLMessage(String rid, String replyToTopic, IType type, String cid) {
+		super(MessageType.inform, rid, replyToTopic);
 		buf = getBuf();
 		addItype(type);
 		addCid(cid);
@@ -49,5 +49,4 @@ public class InformXMLMessage extends XMLMessage {
 		if (cid != null)
 			buf.append("  <cid>").append(cid).append("</cid>\n");
 	}
-	
 }
