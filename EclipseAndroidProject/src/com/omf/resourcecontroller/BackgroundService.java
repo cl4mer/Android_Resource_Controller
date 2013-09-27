@@ -9,15 +9,18 @@ import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.RemoteException;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.widget.Toast;
+import android.view.View;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.OMF.XMPPClass;
@@ -38,46 +41,22 @@ public class BackgroundService extends Service {
 	
 	//Username & password
 	private String uNamePass = null;
-	
+
 	//TopicName
 	private String topicName = null;
-	
-	/** Command to the service to display a message */
-    static final int MSG_SAY_HELLO = 1;
 
-    
-    
-    /**
-     * Handler of incoming messages from external clients.
-     */
-    class IncomingHandler extends Handler {
-        @Override
-        public void handleMessage(Message msg) {
-            switch (msg.what) {
-                case MSG_SAY_HELLO:
-                    Toast.makeText(getApplicationContext(), "hello!", Toast.LENGTH_SHORT).show();
-                    break;
-                default:
-                    super.handleMessage(msg);
-            }
-        }
-    }
+	static final int MSG_START_APP = 1;		
+	static final int MSG_START_DIS_MODE = 2;	
+	static final int MSG_STOP_DIS_MODE = 3;	
 
-    /**
-     * Target we publish for clients to send messages to IncomingHandler.
-     */
-    final Messenger mMessenger = new Messenger(new IncomingHandler());
+	static final String ACTION_OMF_REMOTE_SERVICE = "OMFBackgroundService";	
 
-    /**
-     * When binding to the service, we return an interface to our messenger
-     * for sending messages to the service.
-     */
-    @Override
-    public IBinder onBind(Intent intent) {
-        Toast.makeText(getApplicationContext(), "binding", Toast.LENGTH_SHORT).show();
-        return mMessenger.getBinder();
-    }
-	
+
+	Messenger mService = null;
+
+	/** Flag indicating whether we have called bind on the service. */
+	boolean mBound;   
+
 
 	@Override
 	public void onCreate() {
@@ -178,29 +157,76 @@ public class BackgroundService extends Service {
 				processMessage(msg.obj);					
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS:  				
-				createTopic(null);
+				createTopic(null);	
+				startRemoteOmfService();
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
+				Log.i(TAG,"Message connection failed received");
 				handleFailure();
 				break; 	
-				
-			
+			case Constants.MESSAGE_START_THIRDPARTY_APP:  				
+				startRemoteOmfService();
+				break; 	
+			case Constants.MESSAGE_THIRDPARTY_APP_DATA:  				
+				//sendMessage();
+				break; 			
 			}			
 		}
 	};
+	
+	 /**
+     * Class for interacting with the main interface of the service.
+     */
+    private ServiceConnection mConnection = new ServiceConnection() {
+        public void onServiceConnected(ComponentName className, IBinder service) { 
+        	Log.i(TAG,"service connected");
+            mService = new Messenger(service);
+            mBound = true;
+            sendMessage(MSG_START_APP);
+            sendMessage(MSG_START_DIS_MODE);
+        }
 
-	protected void processMessage(Object obj) {
-		Log.i(TAG, "Got message!");
-	}
+        public void onServiceDisconnected(ComponentName className) {            
+        	mService = null;
+        	mBound = false;
+        }
+    };
 
-	protected void handleFailure() {
-		// TODO Auto-generated method stub
-		
-	}
+    public void sendMessage(int message) {
+    	if (!mBound) return;        
+    	Message msg = Message.obtain(null, message, 0, 0);
+    	try {
+    		mService.send(msg);
+    		Log.i(TAG,"Message sent to Twimight");
+    	} catch (RemoteException e) {    		
+    	}
+    }
+    
+  
+
+
+    protected void processMessage(Object obj) {
+    	Log.i(TAG, "Got message!");
+    }
+
+    protected void startRemoteOmfService() {
+    	Intent intent = new Intent(ACTION_OMF_REMOTE_SERVICE);
+    	bindService(intent, mConnection, BIND_AUTO_CREATE);
+
+    }
+
+    protected void handleFailure() {
+    	startRemoteOmfService();
+    }
 
 	protected void createTopic(String topic) {
-		xmppHelper.createHomeTopic();
-		
+		xmppHelper.createHomeTopic();		
+	}
+	
+	@Override
+	public IBinder onBind(Intent arg0) {
+		// TODO Auto-generated method stub
+		return null;
 	}
 
 	

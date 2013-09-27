@@ -94,17 +94,18 @@ public class XMPPClass {
 			
 			Message msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);
 			//Open XMPP Connection
-			try {
-				Log.i(TAG,"attempting connection");
-				xmppConn.connect(); 		
-				Log.i(TAG,"connected");
+			try {				
+				xmppConn.connect(); 	
+				
 				//Add connection listener
 				if(xmppConn.isConnected()){
+					
 					Log.i(TAG,"XMPP connected");
 					connectionListener = new XMPPConnectionListener();
 					xmppConn.addConnectionListener(connectionListener);
 					
 					xmppLogin(xmppConn, username, password);
+					
 					if (subscribeTo(myTopic) || createTopic(myTopic)) {
 						//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
 						PingManager.getInstanceFor(xmppConn).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)					
@@ -123,8 +124,7 @@ public class XMPPClass {
 
 	public void createConnection(Context appContext) {
 		//Init aSmack
-		SmackAndroid.init(appContext);
-		//SmackConfiguration.setDefaultPingInterval(100);	
+		SmackAndroid.init(appContext);		
 		// XMPP CONNECTION		
 		try {
 			connConfig = new AndroidConnectionConfiguration(Constants.SERVER, Constants.PORT);		
@@ -160,24 +160,13 @@ public class XMPPClass {
 				Log.e(TAG, "XMPP first login failed");
 				Log.d(TAG, "Creating new account");
 
-				if(registerUser(xmpp,username,pass)){
-					try {
-						xmpp.login(username, pass);						
-						Log.i(TAG,"XMPP Logged in");
-						//return true;
-					} catch (XMPPException e1) {	
-						Log.e(TAG,"XMPP Login failed",e);
-						//return false;
-					}
+				if(registerUser(xmpp,username,pass)){					
+						xmpp.login(username, pass);							
+					
 				}
 			}
 		}
 	}
-
-
-
-
-
 /*
 	private LeafNode findTopic(String topic) {
 		LeafNode ret = null;
@@ -212,8 +201,6 @@ public class XMPPClass {
 		Log.d(TAG, "Account created for " + username);		
 		return true;
 	}
-
-	
 
 
 	private void omfHandler(OMFMessage message) {
