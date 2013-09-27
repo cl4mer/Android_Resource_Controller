@@ -33,7 +33,7 @@
             android:title="@string/title_activity_background_service" >
             
              <intent-filter>
-          		  <action android:name="com.omf.resourcecontroller.BackgroundService"/>
+          		  <action android:name="OMFBackgroundService"/>
        		 </intent-filter>
             
 	    </service>            

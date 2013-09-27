@@ -48,7 +48,7 @@ public class BackgroundService extends Service {
     
     
     /**
-     * Handler of incoming messages from clients.
+     * Handler of incoming messages from external clients.
      */
     class IncomingHandler extends Handler {
         @Override
@@ -82,7 +82,7 @@ public class BackgroundService extends Service {
 	@Override
 	public void onCreate() {
 		super.onCreate();	
-
+		
 		// Notification manager Service
 		notificationMgr = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
 		// TelephonyMgr
