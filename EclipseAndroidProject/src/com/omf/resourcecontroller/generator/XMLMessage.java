@@ -27,21 +27,27 @@ package com.omf.resourcecontroller.generator;
 
 import org.jivesoftware.smack.packet.PacketExtension;
 
+import android.util.Log;
+
 
 public class XMLMessage implements PacketExtension {
 	private static final int protocolMajor = 6;
 	private static final int protocolMinor = 0;
-
+	
+	private static final String TAG = "XMLMessage";
+	
 	//public static final String messageEncoding = "utf-8";
 	//private static final String xmlDeclaration = "<?xml version=\"1.0\" encoding=\"" + messageEncoding + "\"?>";
 	
 	private StringBuffer buf;
 	private MessageType type;
+	private boolean finished;
 	private String messageId;
 	
 	public XMLMessage(MessageType type, String rid, String topic) {
 		super();
 		this.type = type;
+		this.finished = false;
 		
 		this.messageId = MessageIDGenerator.nextId();
 		this.buf = new StringBuffer();
@@ -69,7 +75,9 @@ public class XMLMessage implements PacketExtension {
 
 	@Override
 	public String toXML() {
-		buf.append("</").append(getElementName()).append(">\n");
+		if (!finished)
+			buf.append("</").append(getElementName()).append(">\n");
+		finished = true;
 		return buf.toString();
 	}
 

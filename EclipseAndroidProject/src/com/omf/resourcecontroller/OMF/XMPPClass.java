@@ -27,8 +27,7 @@ package com.omf.resourcecontroller.OMF;
 
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.List;
 
 import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.AndroidConnectionConfiguration;
@@ -39,6 +38,7 @@ import org.jivesoftware.smack.XMPPException;
 import org.jivesoftware.smackx.ping.PingManager;
 import org.jivesoftware.smackx.pubsub.ConfigureForm;
 import org.jivesoftware.smackx.pubsub.FormType;
+import org.jivesoftware.smackx.pubsub.Item;
 import org.jivesoftware.smackx.pubsub.ItemPublishEvent;
 import org.jivesoftware.smackx.pubsub.LeafNode;
 import org.jivesoftware.smackx.pubsub.PayloadItem;
@@ -84,11 +84,15 @@ public class XMPPClass {
 	public XMPPClass(String username, String password, String rid, Handler handler) {
 		this.subscriptions = new HashMap<String, Subscription>();
 		this.myTopic = rid;
-		this.mappedResourceId = "xmpp://" + rid + "@" + Constants.SERVER;
+		this.mappedResourceId = mapResourceId(rid);
 		this.username = username;
 		this.password = password;
 		this.handler = handler;
 		this.myHomeNode = null;
+	}
+	
+	private static String mapResourceId(String rid) {
+		return "xmpp://" + rid + "@" + Constants.SERVER;
 	}
 	
 	private class ConnectRunnable implements Runnable {
@@ -109,10 +113,11 @@ public class XMPPClass {
 					xmppConn.addConnectionListener(connectionListener);
 					
 					xmppLogin(xmppConn, username, password);
-					if (subscribeTo(null, myTopic) || createTopic(myTopic)) {
+					if (subscribeTo(null, myTopic, true) || createTopic(myTopic)) {
 						//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
 						PingManager.getInstanceFor(xmppConn).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)					
 						msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_SUCCESS, -1, -1, null);
+						myHomeNode = subscriptions.get(myTopic).getNode();
 					}
 				}      				
 			} catch(XMPPException e) {				
@@ -251,7 +256,7 @@ public class XMPPClass {
 		
 		Log.i(TAG, "creating topic \"" + topic + "\"");
 		
-		if (xmppConn.isAuthenticated()) {
+		if (xmppConn.isAuthenticated() && !subscriptions.containsKey(topic)) {
 			ConfigureForm f = new ConfigureForm(FormType.submit);
 
 			f.setPersistentItems(false);
@@ -264,11 +269,17 @@ public class XMPPClass {
 				addSubscription(topic, node);
 				Log.i(TAG, "created topic \"" + topic + "\"");
 			} catch (XMPPException e) {
-				Log.e(TAG, "Problem creating topic " + topic + ": " + e.getMessage());
-				Log.e(TAG, "Error message is: " + e.getXMPPError().getMessage());
-				ret = false;
+				/* 409 == conflict (i.e., node already exists) */
+				if (e.getXMPPError().getCode() == 409) {
+					Log.i(TAG, "Topic \"" + topic + "\" already exists, subscribing");
+					ret = subscribeTo(null, topic, true);
+				} else {
+					Log.e(TAG, "Problem creating topic \"" + topic + "\": " + e.getMessage());
+					Log.e(TAG, "Error message is: " + e.getXMPPError().getMessage());
+				}
 			}
-		}
+		} else 
+			Log.i(TAG, "I am already subscribed to \"" + topic + "\"");
 		return ret;
 	}
 
@@ -283,7 +294,7 @@ public class XMPPClass {
 		return membership.replaceAll("xmpp://([^@]+)@.*", "$1");
 	}
 	
-	private boolean subscribeTo(String cid, String topic) {
+	private boolean subscribeTo(String cid, String topic, boolean beQuiet) {
 		boolean ret = true;
 		
 		Log.i(TAG, "Subscribing to topic " + topic);
@@ -297,7 +308,7 @@ public class XMPPClass {
 			ret = false;
 		}
 		
-		if (ret && cid != null)
+		if (ret && cid != null && !beQuiet)
 			publishMembershipInformation(cid, topic);
 
 		return ret;
@@ -316,11 +327,9 @@ public class XMPPClass {
 			Log.i(TAG, "Configuring membership");
 			String topic = topicFromMembership(p.getValue("membership")); 
 
-			//publishMembershipInformation(message.getMessageId(), null);
+			publishMembershipInformation(message.getMessageId(), null);
 
-			if (subscribeTo(message.getMessageId(), topic))
-				publishMembershipInformation(message.getMessageId(), topic);
-			 else 
+			if (!subscriptions.containsKey(topic) && !subscribeTo(message.getMessageId(), topic, false))
 				Log.e(TAG, "Can't subscribe to " + topic);
 		} else if (p.containsKey("state")) {
 			if (messageAppliesToMe(message)) {
@@ -355,7 +364,7 @@ public class XMPPClass {
 		
 		for (String s : subscriptions.keySet()) {
 			if (!s.equals(myTopic))
-				ret[i++] = s;
+				ret[i++] = mapResourceId(s);
 		}
 		return ret;
 	}
@@ -368,11 +377,10 @@ public class XMPPClass {
 		p.addKey("membership", getMemberships(), KeyType.STRING);
 		inform.addProperties(p);
 
-		Log.i(TAG, "Message created");
-
 		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-		Log.i(TAG, "Payload created");
 		subscriptions.get(myTopic).getNode().publish(payload);
+		Log.i(TAG, "Membership message published to home node");
+		myHomeNode.publish(payload);
 		Log.i(TAG, "Membership message published to home node");
 
 		if (topic != null) {
@@ -404,29 +412,43 @@ public class XMPPClass {
 
 	private void createApplication(String cid, Properties p) {
 		String topic = topicFromMembership(p.getValue("membership"));
-		if (topic != null) {
-			subscribeTo(cid, topic);
-		}
+		subscribeTo(cid, topic, true);
 		
-		publishApplicationCreation(cid, topic);
-		
+		String appResourceId = "twimight";
+		if (createTopic(appResourceId))
+			publishApplicationCreation(cid, appResourceId, p);
+		else
+			publishApplicationCreationFailure(cid);
 	}
 
-	private void publishApplicationCreation(String cid, String topic) {
-		InformXMLMessage inform = new InformXMLMessage(xmppConn.getUser(), null, IType.creationOk, cid);
+	private void publishApplicationCreationFailure(String cid) {
+		Log.i(TAG, "About to publish creation failure message");
+		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.creationFailed, cid);
+		myHomeNode.publish(new PayloadItem<InformXMLMessage>(inform));
+		Log.i(TAG, "Creation failure message published to home node");
+	}
+
+	private void publishApplicationCreation(String cid, String appResourceId, Properties originalProperties) {
+		Log.i(TAG, "About to publish creation OK message");
+		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.creationOk, cid);
 		
 		Properties p = new Properties(MessageType.PROPS);
-		p.addKey("membership", getMemberships(), KeyType.STRING);
+		p.setNamespace("application", "http://schema.mytestbed.net/omf/6.0/protocol/application");
+		p.addKey("res_id", mapResourceId(appResourceId), KeyType.STRING);
+		p.addKey("membership", originalProperties.getValue("membership"), KeyType.STRING);
 		inform.addProperties(p);
 		
+		Log.i(TAG, "Message 2" + inform.toXML());
 		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-		
-		LeafNode node = subscriptions.get(topic).getNode();
-		node.publish(payload);
-		Log.i(TAG, "Membership messages published to newly subscribed node");
-		
+		Log.i(TAG, "Payload created");
+		try {
+			List<Item> items = myHomeNode.getItems();
+			Log.i(TAG, "List of items has " + items.size() + " elements");
+		} catch (XMPPException e) {
+			Log.d(TAG, "Can't get item list for home node");
+		}
 		myHomeNode.publish(payload);
-		Log.i(TAG, "Membership messages published to home node");
+		Log.i(TAG, "Creation message published to home node");
 	}
 
 	private void handleRequest(OMFMessage message) {

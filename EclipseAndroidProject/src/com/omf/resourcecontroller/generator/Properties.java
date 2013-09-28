@@ -28,7 +28,7 @@ package com.omf.resourcecontroller.generator;
 import java.util.HashMap;
 import java.util.Map;
 
-public class Properties {
+public class Properties implements Cloneable {
 	
 	public enum KeyType {
 		STRING,
