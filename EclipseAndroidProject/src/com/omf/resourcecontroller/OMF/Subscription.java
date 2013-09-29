@@ -27,12 +27,15 @@ package com.omf.resourcecontroller.OMF;
 
 import org.jivesoftware.smackx.pubsub.LeafNode;
 
+import android.util.Log;
+
 import com.omf.resourcecontroller.OMF.XMPPClass.ItemEventCoordinator;
 
 public class Subscription {
 	private String topic;
 	private LeafNode node;
 	private ItemEventCoordinator coordinator;
+	private static final String TAG = "Subscription";
 	
 	public Subscription(String topic, LeafNode node,
 			ItemEventCoordinator coordinator) {
@@ -58,10 +61,12 @@ public class Subscription {
 	}
 
 	public String getTopic() {
+		Log.i(TAG , "getTopic(): " + topic);
 		return topic;
 	}
 	
 	public LeafNode getNode() {
+		Log.i(TAG , "getNode(): " + node);
 		return node;
 	}
 }

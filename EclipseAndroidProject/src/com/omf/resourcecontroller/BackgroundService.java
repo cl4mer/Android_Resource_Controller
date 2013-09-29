@@ -17,10 +17,11 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
+import android.os.PowerManager;
+import android.os.PowerManager.WakeLock;
 import android.os.RemoteException;
 import android.telephony.TelephonyManager;
 import android.util.Log;
-import android.view.View;
 
 import com.omf.resourcecontroller.OMF.OMFMessage;
 import com.omf.resourcecontroller.OMF.XMPPClass;
@@ -28,10 +29,12 @@ import com.omf.resourcecontroller.OMF.XMPPClass;
 public class BackgroundService extends Service {
 
 	public static final String TAG = "BackgroundService";
+	private static final String WAKE_LOCK = "backgroundServiceWakeLock";
 	
 	// Service variables
 	private NotificationManager notificationMgr = null;		//	NOTIFICATION MANAGER
 	private TelephonyManager  telephonyMgr = null;
+	private static WakeLock wakeLock;
 	
 	
 	XMPPClass xmppHelper = null;
@@ -70,9 +73,8 @@ public class BackgroundService extends Service {
 
 		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  xmppHandler);
 		//connection will be created internally in a separate thread.
-		xmppHelper.createConnection(getApplicationContext());
-		
-
+		//xmppHelper.createConnection(getApplicationContext());
+		startRemoteOmfService();
 	}
 
 
@@ -167,9 +169,10 @@ public class BackgroundService extends Service {
 	 /**
      * Handler of incoming messages from service.
      */
-    class IncomingHandler extends Handler {
+    private static class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
+        	Log.i(TAG, "handle message");
             switch (msg.what) {
                 case Constants.MESSAGE_TEST_BIDIRECTIONAL:         
                 	Log.i(TAG,"message received from an external app");
@@ -197,13 +200,14 @@ public class BackgroundService extends Service {
 			case Constants.MESSAGE_READ:  				
 				processMessage(msg.obj);					
 				break; 	
-			case Constants.MESSAGE_CONNECTION_SUCCESS:  				
-				createTopic(null);	
+			case Constants.MESSAGE_CONNECTION_SUCCESS: 	
+				Log.i(TAG,"connection success received");
 				startRemoteOmfService();
+				resubscribe();
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
 				Log.i(TAG,"Message connection failed received");
-				handleFailure();
+				handleFailure();				
 				break; 	
 			case Constants.MESSAGE_START_THIRDPARTY_APP:  				
 				startRemoteOmfService();
@@ -213,31 +217,28 @@ public class BackgroundService extends Service {
 				break; 			
 			}			
 		}
+
 	};
 
 	/**
 	 * Class for interacting with the main interface of the service.
 	 */
 	private ServiceConnection mConnection = new ServiceConnection() {
-		public void onServiceConnected(ComponentName className, IBinder service) { 
-			Log.i(TAG,"service connected");
-			externalMessenger = new Messenger(service);
+		public void onServiceConnected(ComponentName className, IBinder service) { 		
+			
+			externalMessenger = new Messenger(service);			
 			mBound = true;
-
 			// We want to monitor the service for as long as we are
 			// connected to it.
 			try {
 				Message msg = Message.obtain(null,Constants.MSG_REGISTER_CLIENT);
 				msg.replyTo = localMessenger;
+				Log.i(TAG,"sending local Messenger");
 				externalMessenger.send(msg);
 				
 			} catch (RemoteException e) {
-				// In this case the service has crashed before we could even
-				// do anything with it; we can count on soon being
-				// disconnected (and then reconnected if it can be restarted)
-				// so there is no need to do anything here.
+				
 			}
-
 			sendMessage(Constants.MSG_START_APP);
 			sendMessage(Constants.MSG_START_DIS_MODE);
 		}
@@ -250,15 +251,13 @@ public class BackgroundService extends Service {
 
     public void sendMessage(int message) {
     	if (!mBound) return;        
-    	Message msg = Message.obtain(null, message, 0, 0);
+    	Message msg = Message.obtain(null, message);
     	try {
     		externalMessenger.send(msg);
     		Log.i(TAG,"Message sent to Twimight");
     	} catch (RemoteException e) {    		
     	}
-    }
-    
-  
+    }  
 
 
     protected void processMessage(Object obj) {
@@ -271,18 +270,42 @@ public class BackgroundService extends Service {
 
     }
 
-    protected void handleFailure() {    	
-    }
-
-	protected void createTopic(String topic) {
-		xmppHelper.createHomeTopic();		
-	}
-	
+  	
 	@Override
 	public IBinder onBind(Intent arg0) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
+	private void resubscribe() {
+		xmppHelper.resubscribe();
+	}
+
+	protected void handleFailure() {
+		// TODO Auto-generated method stub	
+
+	}
 	
+	/**
+	 * Acquire the Wake Lock
+	 * @param context
+	 */
+	public static void getWakeLock(Context context){
+
+		releaseWakeLock();
+
+		PowerManager mgr = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+		wakeLock = mgr.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK , WAKE_LOCK); 
+		wakeLock.acquire();
+	}
+
+	/**
+	 * We have to make sure to release the wake lock after the TDSThread is done!
+	 * @param context
+	 */
+	public static void releaseWakeLock(){
+		if(wakeLock != null)
+			if(wakeLock.isHeld())
+				wakeLock.release();
+	}
 }
