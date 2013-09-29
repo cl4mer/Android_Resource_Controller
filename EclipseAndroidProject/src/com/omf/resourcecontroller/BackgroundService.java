@@ -45,14 +45,10 @@ public class BackgroundService extends Service {
 	//TopicName
 	private String topicName = null;
 
-	static final int MSG_START_APP = 1;		
-	static final int MSG_START_DIS_MODE = 2;	
-	static final int MSG_STOP_DIS_MODE = 3;	
-
 	static final String ACTION_OMF_REMOTE_SERVICE = "OMFBackgroundService";	
 
 
-	Messenger mService = null;
+	Messenger externalMessenger = null;
 
 	/** Flag indicating whether we have called bind on the service. */
 	boolean mBound;   
@@ -72,7 +68,7 @@ public class BackgroundService extends Service {
 
 		//MessageIDGenerator.setPrefix(uNamePass);	
 
-		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  mHandler);
+		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  xmppHandler);
 		//connection will be created internally in a separate thread.
 		xmppHelper.createConnection(getApplicationContext());
 		
@@ -93,11 +89,35 @@ public class BackgroundService extends Service {
 		if(xmppHelper  != null)
 			xmppHelper.destroyConnection();
 		xmppHelper  = null;
+		
+		disableDeliveredMessenger();
+		unbindService();			
 		displayNotificationMessage("XMPP stopped");
 		
 		Log.i(TAG,"XMPP stopped");
 	}
+
+
+	private void unbindService() {
+		if (mBound) {
+			unbindService(mConnection);
+		}		
+	}
 	
+	private void disableDeliveredMessenger() {
+		if (externalMessenger != null) {
+			try {
+				Message msg = Message.obtain(null,Constants.MSG_UNREGISTER_CLIENT);
+				msg.replyTo = localMessenger;
+				externalMessenger.send(msg);
+			} catch (RemoteException e) {
+				// There is nothing special we need to do if the service
+				// has crashed.
+			}
+			
+		}
+	}
+
 
 	// --- SERVICE CHECK CONTROL USING THE SYSTMEM
 	// Check if the service is running
@@ -144,10 +164,31 @@ public class BackgroundService extends Service {
 		}
 	}
 	
+	 /**
+     * Handler of incoming messages from service.
+     */
+    class IncomingHandler extends Handler {
+        @Override
+        public void handleMessage(Message msg) {
+            switch (msg.what) {
+                case Constants.MESSAGE_TEST_BIDIRECTIONAL:         
+                	Log.i(TAG,"message received from an external app");
+                    break;
+                default:
+                    super.handleMessage(msg);
+            }
+        }
+    }
+    
+    /**
+     * Target we publish for clients to send messages to IncomingHandler.
+     */
+    final Messenger localMessenger= new Messenger(new IncomingHandler());
+	
 	/**
 	 *  The Handler that gets information back from the XMPP class
 	 */
-	private final Handler mHandler = new Handler() {
+	private final Handler xmppHandler = new Handler() {
 
 		@Override
 		public void handleMessage(Message msg) {
@@ -173,21 +214,36 @@ public class BackgroundService extends Service {
 			}			
 		}
 	};
-	
-	 /**
-     * Class for interacting with the main interface of the service.
-     */
-    private ServiceConnection mConnection = new ServiceConnection() {
-        public void onServiceConnected(ComponentName className, IBinder service) { 
-        	Log.i(TAG,"service connected");
-            mService = new Messenger(service);
-            mBound = true;
-            sendMessage(MSG_START_APP);
-            sendMessage(MSG_START_DIS_MODE);
-        }
+
+	/**
+	 * Class for interacting with the main interface of the service.
+	 */
+	private ServiceConnection mConnection = new ServiceConnection() {
+		public void onServiceConnected(ComponentName className, IBinder service) { 
+			Log.i(TAG,"service connected");
+			externalMessenger = new Messenger(service);
+			mBound = true;
+
+			// We want to monitor the service for as long as we are
+			// connected to it.
+			try {
+				Message msg = Message.obtain(null,Constants.MSG_REGISTER_CLIENT);
+				msg.replyTo = localMessenger;
+				externalMessenger.send(msg);
+				
+			} catch (RemoteException e) {
+				// In this case the service has crashed before we could even
+				// do anything with it; we can count on soon being
+				// disconnected (and then reconnected if it can be restarted)
+				// so there is no need to do anything here.
+			}
+
+			sendMessage(Constants.MSG_START_APP);
+			sendMessage(Constants.MSG_START_DIS_MODE);
+		}
 
         public void onServiceDisconnected(ComponentName className) {            
-        	mService = null;
+        	externalMessenger = null;
         	mBound = false;
         }
     };
@@ -196,7 +252,7 @@ public class BackgroundService extends Service {
     	if (!mBound) return;        
     	Message msg = Message.obtain(null, message, 0, 0);
     	try {
-    		mService.send(msg);
+    		externalMessenger.send(msg);
     		Log.i(TAG,"Message sent to Twimight");
     	} catch (RemoteException e) {    		
     	}

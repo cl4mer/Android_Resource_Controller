@@ -12,10 +12,23 @@ public interface Constants {
 
 	public static final int PORT = 5222;
 	
-	public static final int MESSAGE_READ = 10;
-	public static final int MESSAGE_CONNECTION_SUCCESS = 20;
-	public static final int MESSAGE_CONNECTION_FAILED = 30;
+	//messages sent to the external app
+	static final int MSG_START_APP = 1;		
+	static final int MSG_START_DIS_MODE = 2;	
+	static final int MSG_STOP_DIS_MODE = 3;	
+	static final int MSG_REGISTER_CLIENT = 4;   
+	static final int MSG_UNREGISTER_CLIENT = 5;
 	
-	public static final int MESSAGE_START_THIRDPARTY_APP = 40;
-	public static final int MESSAGE_THIRDPARTY_APP_DATA = 50;
+	//messages received from the external app
+	public static final int MESSAGE_TEST_BIDIRECTIONAL = 21;
+	
+	//messages for the xmpp helper class
+	public static final int MESSAGE_READ = 11;
+	public static final int MESSAGE_CONNECTION_SUCCESS = 12;
+	public static final int MESSAGE_CONNECTION_FAILED = 13;	
+	public static final int MESSAGE_START_THIRDPARTY_APP = 14;
+	public static final int MESSAGE_THIRDPARTY_APP_DATA = 15;
+	
+
+
 }
