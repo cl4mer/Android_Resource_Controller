@@ -2,15 +2,14 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.omf.resourcecontroller"
     android:versionCode="1"
-    android:versionName="1.0" >
-
-    <uses-sdk
+    android:versionName="1.0" ><uses-sdk
         android:minSdkVersion="9"
         android:targetSdkVersion="14" />
-    
+
     <uses-permission android:name="android.permission.INTERNET" />
-	<uses-permission android:name="android.permission.READ_PHONE_STATE"/>
-    
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
@@ -26,17 +25,14 @@
             </intent-filter>
         </activity>
 
-        
         <!-- SERVICES -->
-        <service 
+        <service
             android:name="com.omf.resourcecontroller.BackgroundService"
             android:title="@string/title_activity_background_service" >
-            
-             <intent-filter>
-          		  <action android:name="com.omf.resourcecontroller.BackgroundService"/>
-       		 </intent-filter>
-            
-	    </service>            
+            <intent-filter>
+                <action android:name="OMFBackgroundService" />
+            </intent-filter>
+        </service>
         
     </application>
 
