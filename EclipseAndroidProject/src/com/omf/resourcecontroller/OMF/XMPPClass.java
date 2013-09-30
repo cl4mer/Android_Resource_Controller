@@ -514,37 +514,6 @@ public class XMPPClass {
 	 * @author Polychronis
 	 */
 	class ItemEventCoordinator implements ItemEventListener<PayloadItem<XMLMessage>> {
-		private static final int nRecentMessageIDs = 10;
-
-		private String[] recentMessageIDs;
-		private int in;
-		private boolean isProxy;
-		
-		public ItemEventCoordinator() {
-			this.recentMessageIDs = new String[nRecentMessageIDs];
-
-			this.in = 0;
-			for (int j = 0; j < recentMessageIDs.length; j++)
-				this.recentMessageIDs[j] = null; 
-		}
-
-		private boolean isNewId(String messageId) {
-			boolean ret = true;
-			for (int i = 0; i < recentMessageIDs.length; i++) {	
-				if (messageId.equals(recentMessageIDs[i]))	{
-					ret = false;
-					break;
-				}
-			}
-
-			return ret;
-		}
-	
-		private void addMessageId(String messageId) {
-			recentMessageIDs[in] = messageId;
-			in = (in + 1) % recentMessageIDs.length;
-		}
-
 		@Override
 		public void handlePublishedItems(ItemPublishEvent<PayloadItem<XMLMessage>> items) {
 			XMPPParser parser = new XMPPParser();
@@ -557,16 +526,9 @@ public class XMPPClass {
 
 						assert !omfMessage.isEmpty();
 						
-						if (!sentByMe(omfMessage) && isNewId(omfMessage.getMessageId()))	{
-							Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is new");
-							
-							addMessageId(omfMessage.getMessageId());
-							
-							if (isProxy)
-								System.out.println("This is a resource proxy");
-							else
-								omfHandler(omfMessage);
-							
+						if (!sentByMe(omfMessage) && RecentMessageIds.isNewId(omfMessage.getMessageId()))	{
+							Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is new");							
+							omfHandler(omfMessage);
 							System.out.println(omfMessage.toString());
 						} else 
 							Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is a duplicate");
@@ -582,7 +544,7 @@ public class XMPPClass {
 		}
 
 		private boolean sentByMe(OMFMessage omfMessage) {
-			return omfMessage.getSrc().equalsIgnoreCase(xmppConn.getUser());
+			return omfMessage.getSrc().equalsIgnoreCase(mappedResourceId);
 		}
 	}
 
