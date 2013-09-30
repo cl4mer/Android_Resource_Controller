@@ -284,7 +284,7 @@ public class XMPPClass {
 	}
 
 	private void addSubscription(String topic, LeafNode node) {
-		ItemEventCoordinator eventListener = new ItemEventCoordinator(false);
+		ItemEventCoordinator eventListener = new ItemEventCoordinator();
 		node.addItemEventListener(eventListener);
 		subscriptions.put(topic, new Subscription(topic, node, eventListener));
 	}
@@ -525,9 +525,8 @@ public class XMPPClass {
 		private int in;
 		private boolean isProxy;
 		
-		public ItemEventCoordinator(boolean isProxy) {
+		public ItemEventCoordinator() {
 			this.recentMessageIDs = new String[nRecentMessageIDs];
-			this.isProxy = isProxy;
 
 			this.in = 0;
 			for (int j = 0; j < recentMessageIDs.length; j++)
