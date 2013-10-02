@@ -60,21 +60,18 @@ public class BackgroundService extends Service {
 	@Override
 	public void onCreate() {
 		super.onCreate();	
+
+		Log.i(TAG, "onCreate()");
 		
-		// Notification manager Service
 		notificationMgr = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-		// TelephonyMgr
 		telephonyMgr = (TelephonyManager)getSystemService(Context.TELEPHONY_SERVICE);;
 		topicName = telephonyMgr.getDeviceId();
 
-		uNamePass = "android.omf."+topicName;
-
-		//MessageIDGenerator.setPrefix(uNamePass);	
+		uNamePass = "android.omf." + topicName;
 
 		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  xmppHandler);
-		//connection will be created internally in a separate thread.
-		//xmppHelper.createConnection(getApplicationContext());
 		startRemoteOmfService();
+		xmppHelper.createConnection(getApplicationContext());
 	}
 
 
@@ -267,7 +264,6 @@ public class BackgroundService extends Service {
     protected void startRemoteOmfService() {
     	Intent intent = new Intent(ACTION_OMF_REMOTE_SERVICE);
     	bindService(intent, mConnection, BIND_AUTO_CREATE);
-
     }
 
   	

@@ -28,7 +28,4 @@ public interface Constants {
 	public static final int MESSAGE_CONNECTION_FAILED = 13;	
 	public static final int MESSAGE_START_THIRDPARTY_APP = 14;
 	public static final int MESSAGE_THIRDPARTY_APP_DATA = 15;
-	
-
-
 }

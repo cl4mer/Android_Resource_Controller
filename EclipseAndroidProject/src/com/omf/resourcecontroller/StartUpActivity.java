@@ -29,10 +29,9 @@ public class StartUpActivity extends Activity {
 	protected void onStart() {
 		super.onStart();
 
-
-		if(BackgroundService.isServiceRunning(getApplicationContext(), ".BackgroundService")){
+		if (BackgroundService.isServiceRunning(getApplicationContext(), ".BackgroundService")) {
 			toggleService.setChecked(true);
-		}else{
+		} else {
 			toggleService.setChecked(false);
 		}
 	}
@@ -40,13 +39,13 @@ public class StartUpActivity extends Activity {
 	@Override
 	protected void onStop() {
 		super.onStop();
-		Log.i(TAG,"onStop");
+		Log.i(TAG, "onStop");
 	}
 	
 	/**
 	 * LISTENER FUNCTIONS
 	 */
-	View.OnClickListener toggleListener = new View.OnClickListener(){
+	View.OnClickListener toggleListener = new View.OnClickListener() {
 		@Override
 		public void onClick(View v) {
 			
@@ -56,14 +55,13 @@ public class StartUpActivity extends Activity {
 				
 				Log.i(TAG, "Start Service");
 				startService(intent);
+				Log.i(TAG, "Service started");
 			}else {
 				Log.i(TAG, "Stop Service");
 				stopService(intent);
+				Log.i(TAG, "Service stopped");
 			}
 			
 		}
 	};
-	
-	
-
 }

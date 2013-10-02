@@ -29,16 +29,14 @@ import org.jivesoftware.smackx.pubsub.LeafNode;
 
 import android.util.Log;
 
-import com.omf.resourcecontroller.OMF.XMPPClass.ItemEventCoordinator;
-
 public class Subscription {
 	private String topic;
 	private LeafNode node;
-	private ItemEventCoordinator coordinator;
+	private OMFEventCoordinator coordinator;
 	private static final String TAG = "Subscription";
 	
 	public Subscription(String topic, LeafNode node,
-			ItemEventCoordinator coordinator) {
+			OMFEventCoordinator coordinator) {
 		super();
 		this.topic = topic;
 		this.node = node;
@@ -52,11 +50,11 @@ public class Subscription {
 		this.coordinator = null;
 	}
 	
-	public ItemEventCoordinator getCoordinator() {
+	public OMFEventCoordinator getCoordinator() {
 		return coordinator;
 	}
 
-	public void setCoordinator(ItemEventCoordinator coordinator) {
+	public void setCoordinator(OMFEventCoordinator coordinator) {
 		this.coordinator = coordinator;
 	}
 
