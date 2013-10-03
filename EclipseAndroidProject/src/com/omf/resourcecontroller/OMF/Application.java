@@ -1,11 +1,9 @@
 package com.omf.resourcecontroller.OMF;
 
 import org.jivesoftware.smack.XMPPConnection;
-import org.jivesoftware.smackx.pubsub.ItemPublishEvent;
 import org.jivesoftware.smackx.pubsub.LeafNode;
 import org.jivesoftware.smackx.pubsub.PayloadItem;
 import org.jivesoftware.smackx.pubsub.PubSubManager;
-import org.jivesoftware.smackx.pubsub.listener.ItemEventListener;
 
 import android.util.Log;
 
@@ -15,7 +13,6 @@ import com.omf.resourcecontroller.generator.InformXMLMessage;
 import com.omf.resourcecontroller.generator.Properties;
 import com.omf.resourcecontroller.generator.Properties.KeyType;
 import com.omf.resourcecontroller.generator.Properties.MessageType;
-import com.omf.resourcecontroller.generator.XMLMessage;
 
 public class Application implements OMFMessageHandler {
 	private static final String TAG = "Application";
@@ -49,6 +46,10 @@ public class Application implements OMFMessageHandler {
 			 appState = AppState.STATE_INIT;
 		}
 		
+		public AppState getAppState() {
+			return this.appState;
+		}
+		
 		@Override
 		public void run() {
 			// Wait until RUNNING or EXITING
@@ -64,15 +65,16 @@ public class Application implements OMFMessageHandler {
 			
 			// Now RUNNING or EXITING
 			// If RUNNING, the thread does its thing, checking appState occasionally
-			if (appState != AppState.STATE_EXITING) {
+			int i = 0;
+			while (appState != AppState.STATE_EXITING && i < 5) {
 				try {
 					Thread.sleep(1000);
+					signalStdout("Hi, this is an app, message " + i + "\n");
 				} catch (InterruptedException e) {
 					; // Empty
 				}
+				i++;
 			}
-			if (appState != AppState.STATE_EXITING)
-				signalStdout("Hi, this is an app\n");
 			
 			// Wait until EXITING
 			synchronized(this) {
@@ -86,20 +88,74 @@ public class Application implements OMFMessageHandler {
 			}
 			
 			appState = AppState.STATE_EXITED;
-			signalStateChange(appState);
+			signalState();
 		}
 		
 		public void startApp() {
-			appState = AppState.STATE_RUNNING;
-			this.notify();
-			signalStateChange(appState);
+			synchronized (this) {
+				appState = AppState.STATE_RUNNING;
+				this.notify();
+			}
+			signalState();
 		}
 		
 		public void stopApp() {
 			appState = AppState.STATE_EXITING;
 			this.notify();
-			signalStateChange(appState);
+			signalState();
 		}
+		
+		private void signalStdout(String msg) {
+			Log.i(TAG, "About to publish state change message");
+			InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
+			
+			Properties p = new Properties(MessageType.PROPS);
+			p.addKey("status_type", "APP_EVENT", KeyType.STRING);
+			p.addKey("event", "STDOUT", KeyType.STRING);
+			p.addKey("msg", msg, KeyType.STRING);
+			p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
+			p.addKey("uid", resourceId, KeyType.STRING);
+			p.addKey("hrn", appName, KeyType.STRING);
+			inform.addProperties(p);
+			
+			PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
+			homeNode.publish(payload);
+			Log.i(TAG, "State change message published");
+			
+			seq++;		
+		}
+		
+		private void signalState() {
+			Log.i(TAG, "About to publish state change message");
+			InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
+			
+			Properties p = new Properties(MessageType.PROPS);
+			p.addKey("status_type", "APP_EVENT", KeyType.STRING);
+			p.addKey("event", stateToString(app.getAppState()), KeyType.STRING);
+			p.addKey("msg", appName, KeyType.STRING);
+			p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
+			p.addKey("uid", resourceId, KeyType.STRING);
+			p.addKey("hrn", appName, KeyType.STRING);
+			inform.addProperties(p);
+			
+			PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
+			homeNode.publish(payload);
+			Log.i(TAG, "State change message published");
+			
+			seq++;
+		}
+		
+		private String stateToString(AppState newState) {
+			switch (newState) {
+			case STATE_INIT: return "STOPPED";
+			case STATE_RUNNING: return "STARTED";
+			case STATE_EXITING: return "EXITING";
+			case STATE_EXITED: return "EXITED";
+			}
+			return null;
+		}
+		
+
 	}
 	
 
@@ -156,56 +212,6 @@ public class Application implements OMFMessageHandler {
 		seq++;
 	}
 
-	private void signalStateChange(AppState newState) {
-		Log.i(TAG, "About to publish state change message");
-		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
-		
-		Properties p = new Properties(MessageType.PROPS);
-		p.addKey("status_type", "APP_EVENT", KeyType.STRING);
-		p.addKey("event", stateToString(newState), KeyType.STRING);
-		p.addKey("msg", appName, KeyType.STRING);
-		p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
-		p.addKey("uid", resourceId, KeyType.STRING);
-		p.addKey("hrn", appName, KeyType.STRING);
-		inform.addProperties(p);
-		
-		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-		homeNode.publish(payload);
-		Log.i(TAG, "State change message published");
-		
-		seq++;
-	}
-	
-	private static String stateToString(AppState newState) {
-		switch (newState) {
-		case STATE_INIT: return "STOPPED";
-		case STATE_RUNNING: return "STARTED";
-		case STATE_EXITING: return "EXITING";
-		case STATE_EXITED: return "EXITED";
-		}
-		return null;
-	}
-
-	private void signalStdout(String msg) {
-		Log.i(TAG, "About to publish state change message");
-		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
-		
-		Properties p = new Properties(MessageType.PROPS);
-		p.addKey("status_type", "APP_EVENT", KeyType.STRING);
-		p.addKey("event", "STDOUT", KeyType.STRING);
-		p.addKey("msg", msg, KeyType.STRING);
-		p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
-		p.addKey("uid", resourceId, KeyType.STRING);
-		p.addKey("hrn", appName, KeyType.STRING);
-		inform.addProperties(p);
-		
-		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-		homeNode.publish(payload);
-		Log.i(TAG, "State change message published");
-		
-		seq++;		
-	}
-	
 	public void startApp() {		
 		app.start();
 		app.startApp();
@@ -227,9 +233,32 @@ public class Application implements OMFMessageHandler {
 	}
 
 	public void handleConfigure(OMFMessage message) {
+		Properties p = message.getProperties();
 		
+		if (appliesToMe(message)) {
+			if (p.containsKey("state")) {
+				AppState appState = app.getAppState();
+				String newState = p.getValue("state");
+				
+				if (newState.equalsIgnoreCase("running")) {
+					if (appState == AppState.STATE_INIT)
+						startApp();
+					// potential else-ifs here
+				}
+			}
+			
+			// Give feedback even if state has not changed.
+			app.signalState();
+		}
 	}
 	
+	private boolean appliesToMe(OMFMessage message) {
+		Properties g = message.getGuard();
+		
+		return g.containsKey("type") && g.getValue("type").equalsIgnoreCase("application")
+				&& g.containsKey("name") && g.getValue("name").equalsIgnoreCase(appName);
+	}
+
 	@Override
 	public void handle(OMFMessage message) {
 		switch (message.getMessageType().getType()) {
