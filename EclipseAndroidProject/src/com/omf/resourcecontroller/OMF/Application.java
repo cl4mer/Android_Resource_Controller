@@ -28,8 +28,6 @@ public class Application implements OMFMessageHandler {
 	private String mappedResourceId;
 	private AppRunnable app;
 
-	private int seq;
-
 	private boolean isGood;
 	
 	private enum AppState {
@@ -41,9 +39,11 @@ public class Application implements OMFMessageHandler {
 	
 	private class AppRunnable extends Thread {
 		private AppState appState;
+		private int seq;
 		
 		public AppRunnable() {
-			 appState = AppState.STATE_INIT;
+			 this.appState = AppState.STATE_INIT;
+			 this.seq = 1;
 		}
 		
 		public AppState getAppState() {
@@ -97,6 +97,7 @@ public class Application implements OMFMessageHandler {
 				this.notify();
 			}
 			signalState();
+			this.start();
 		}
 		
 		public void stopApp() {
@@ -105,7 +106,7 @@ public class Application implements OMFMessageHandler {
 			signalState();
 		}
 		
-		private void signalStdout(String msg) {
+		private synchronized void signalStdout(String msg) {
 			Log.i(TAG, "About to publish state change message");
 			InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
 			
@@ -116,16 +117,17 @@ public class Application implements OMFMessageHandler {
 			p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
 			p.addKey("uid", resourceId, KeyType.STRING);
 			p.addKey("hrn", appName, KeyType.STRING);
+			p.addKey("app", appName, KeyType.STRING);
 			inform.addProperties(p);
 			
 			PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-			homeNode.publish(payload);
+			membershipNode.publish(payload);
 			Log.i(TAG, "State change message published");
 			
 			seq++;		
 		}
 		
-		private void signalState() {
+		private synchronized void signalState() {
 			Log.i(TAG, "About to publish state change message");
 			InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
 			
@@ -136,10 +138,11 @@ public class Application implements OMFMessageHandler {
 			p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
 			p.addKey("uid", resourceId, KeyType.STRING);
 			p.addKey("hrn", appName, KeyType.STRING);
+			p.addKey("app", appName, KeyType.STRING);
 			inform.addProperties(p);
 			
 			PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
-			homeNode.publish(payload);
+			membershipNode.publish(payload);
 			Log.i(TAG, "State change message published");
 			
 			seq++;
@@ -169,7 +172,6 @@ public class Application implements OMFMessageHandler {
 		this.conn = conn;
 		this.pubmgr = pubmgr;
 		*/
-		this.seq = 1;
 		this.app = new AppRunnable();
 		
 		this.homeNode = XMPPHelper.createTopic(conn, pubmgr, resourceId);
@@ -207,13 +209,10 @@ public class Application implements OMFMessageHandler {
 		
 		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
 		membershipNode.publish(payload);
-		Log.i(TAG, "State change message published");
-		
-		seq++;
+		Log.i(TAG, "Creation.OK message published");
 	}
 
 	public void startApp() {		
-		app.start();
 		app.startApp();
 	}
 	
@@ -248,7 +247,7 @@ public class Application implements OMFMessageHandler {
 			}
 			
 			// Give feedback even if state has not changed.
-			app.signalState();
+			//app.signalState();
 		}
 	}
 	
