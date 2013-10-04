@@ -76,6 +76,8 @@ public class Application implements OMFMessageHandler {
 				i++;
 			}
 			
+			appState = AppState.STATE_EXITING;
+			
 			// Wait until EXITING
 			synchronized(this) {
 				while (appState != AppState.STATE_EXITING) {
@@ -133,12 +135,18 @@ public class Application implements OMFMessageHandler {
 			
 			Properties p = new Properties(MessageType.PROPS);
 			p.addKey("status_type", "APP_EVENT", KeyType.STRING);
-			p.addKey("event", stateToString(app.getAppState()), KeyType.STRING);
+			p.addKey("event", stateToString(appState), KeyType.STRING);
 			p.addKey("msg", appName, KeyType.STRING);
 			p.addKey("seq", Integer.toString(seq), KeyType.INTEGER);
 			p.addKey("uid", resourceId, KeyType.STRING);
 			p.addKey("hrn", appName, KeyType.STRING);
 			p.addKey("app", appName, KeyType.STRING);
+			
+			if (appState == AppState.STATE_EXITED) {
+				p.addKey("exit_code", "0", KeyType.INTEGER);
+				p.addKey("state", "stopped", KeyType.SYMBOL);
+			}
+			
 			inform.addProperties(p);
 			
 			PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
@@ -153,7 +161,7 @@ public class Application implements OMFMessageHandler {
 			case STATE_INIT: return "STOPPED";
 			case STATE_RUNNING: return "STARTED";
 			case STATE_EXITING: return "EXITING";
-			case STATE_EXITED: return "EXITED";
+			case STATE_EXITED: return "EXIT";
 			}
 			return null;
 		}
