@@ -82,6 +82,14 @@ public class XMPPClass implements OMFMessageHandler {
 		return "xmpp://" + rid + "@" + Constants.SERVER;
 	}
 	
+	/**
+	 * This method is called by the background service with the counter value
+	 * @param counter
+	 */
+	public void updateCounter(int counter){
+		
+	}
+	
 	private class ConnectRunnable implements Runnable {
 
 		@Override

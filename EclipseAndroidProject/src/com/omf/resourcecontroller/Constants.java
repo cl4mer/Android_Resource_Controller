@@ -20,7 +20,7 @@ public interface Constants {
 	static final int MSG_UNREGISTER_CLIENT = 5;
 	
 	//messages received from the external app
-	public static final int MESSAGE_TEST_BIDIRECTIONAL = 21;
+	public static final int MESSAGE_COUNTER_UPDATE= 21;
 	
 	//messages for the xmpp helper class
 	public static final int MESSAGE_READ = 11;

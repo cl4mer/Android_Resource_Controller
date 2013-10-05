@@ -70,7 +70,7 @@ public class BackgroundService extends Service {
 		uNamePass = "android.omf." + topicName;
 
 		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  xmppHandler);
-		startRemoteOmfService();
+		//bindToRemoteOmfService();
 		xmppHelper.createConnection(getApplicationContext());
 	}
 
@@ -166,13 +166,14 @@ public class BackgroundService extends Service {
 	 /**
      * Handler of incoming messages from service.
      */
-    private static class IncomingHandler extends Handler {
+    private class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
         	Log.i(TAG, "handle message");
             switch (msg.what) {
-                case Constants.MESSAGE_TEST_BIDIRECTIONAL:         
-                	Log.i(TAG,"message received from an external app");
+                case Constants.MESSAGE_COUNTER_UPDATE:         
+                	int counter = msg.arg1;
+                	xmppHelper.updateCounter(counter);
                     break;
                 default:
                     super.handleMessage(msg);
@@ -199,7 +200,7 @@ public class BackgroundService extends Service {
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS: 	
 				Log.i(TAG,"connection success received");
-				startRemoteOmfService();
+				bindToRemoteOmfService();
 				resubscribe();
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
@@ -207,7 +208,7 @@ public class BackgroundService extends Service {
 				handleFailure();				
 				break; 	
 			case Constants.MESSAGE_START_THIRDPARTY_APP:  				
-				startRemoteOmfService();
+				bindToRemoteOmfService();
 				break; 	
 			case Constants.MESSAGE_THIRDPARTY_APP_DATA:  				
 				//sendMessage();
@@ -236,8 +237,7 @@ public class BackgroundService extends Service {
 			} catch (RemoteException e) {
 				
 			}
-			sendMessage(Constants.MSG_START_APP);
-			sendMessage(Constants.MSG_START_DIS_MODE);
+			sendMessage(Constants.MSG_START_APP);			
 		}
 
         public void onServiceDisconnected(ComponentName className) {            
@@ -247,7 +247,7 @@ public class BackgroundService extends Service {
     };
 
     public void sendMessage(int message) {
-    	if (!mBound) return;        
+    	if (!mBound || externalMessenger == null) return;        
     	Message msg = Message.obtain(null, message);
     	try {
     		externalMessenger.send(msg);
@@ -261,7 +261,7 @@ public class BackgroundService extends Service {
     	Log.i(TAG, "Got message!");
     }
 
-    protected void startRemoteOmfService() {
+    protected void bindToRemoteOmfService() {
     	Intent intent = new Intent(ACTION_OMF_REMOTE_SERVICE);
     	bindService(intent, mConnection, BIND_AUTO_CREATE);
     }
