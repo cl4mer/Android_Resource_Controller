@@ -170,7 +170,7 @@ public class Application implements OMFMessageHandler {
 	}
 	
 
-	public Application(XMPPConnection conn, PubSubManager pubmgr, String appName, String resourceId, String membership) {
+	public Application(XMPPConnection conn, Object xmppLock,  PubSubManager pubmgr, String appName, String resourceId, String membership) {
 		super();
 		this.appName = appName;
 		this.resourceId = resourceId;
@@ -182,11 +182,11 @@ public class Application implements OMFMessageHandler {
 		*/
 		this.app = new AppRunnable();
 		
-		this.homeNode = XMPPHelper.createTopic(conn, pubmgr, resourceId);
+		this.homeNode = XMPPHelper.createTopic(conn, xmppLock, pubmgr, resourceId);
 		if (homeNode != null) {
 			homeNode.addItemEventListener(new OMFEventCoordinator(this));
 			
-			this.membershipNode = XMPPHelper.subscribeTo(conn, pubmgr, membership);
+			this.membershipNode = XMPPHelper.subscribeTo(conn, xmppLock, pubmgr, membership);
 			if (membershipNode != null)
 				membershipNode.addItemEventListener(new OMFEventCoordinator(this));
 		}

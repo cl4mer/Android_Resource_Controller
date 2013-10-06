@@ -200,8 +200,7 @@ public class BackgroundService extends Service {
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS: 	
 				Log.i(TAG,"connection success received");
-				//bindToRemoteOmfService();
-				resubscribe();
+				//bindToRemoteOmfService();				
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
 				Log.i(TAG,"Message connection failed received");

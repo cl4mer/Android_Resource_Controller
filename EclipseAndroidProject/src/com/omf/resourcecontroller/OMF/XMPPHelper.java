@@ -13,11 +13,11 @@ import android.util.Log;
 public class XMPPHelper {
 	private static final String TAG = "XMPPHelper";
 	
-	public static LeafNode subscribeTo(XMPPConnection xmppConn, PubSubManager pubmgr, String topic) {
+	public static LeafNode subscribeTo(XMPPConnection xmppConn, Object xmppLock, PubSubManager pubmgr, String topic) {
 		LeafNode ret = null;
 		
 		Log.i(TAG, "Subscribing to topic " + topic);
-		synchronized (xmppConn) {
+		synchronized (xmppLock) {
 			try {
 				ret = pubmgr.getNode(topic);
 				ret.subscribe(xmppConn.getUser());
@@ -29,12 +29,12 @@ public class XMPPHelper {
 		return ret;
 	}
 	
-	public static LeafNode createTopic(XMPPConnection xmppConn, PubSubManager pubmgr, String topic) {
+	public static LeafNode createTopic(XMPPConnection xmppConn, Object xmppLock, PubSubManager pubmgr, String topic) {
 		LeafNode ret = null;
 		
 		Log.i(TAG, "creating topic \"" + topic + "\"");
 		
-		synchronized(xmppConn) {
+		synchronized(xmppLock) {
 			Log.i(TAG, "in synch block");
 			if (xmppConn.isAuthenticated()) {
 				ConfigureForm f = new ConfigureForm(FormType.submit);
@@ -51,7 +51,7 @@ public class XMPPHelper {
 					/* 409 == conflict (i.e., node already exists) */
 					if (e.getXMPPError().getCode() == 409) {
 						Log.i(TAG, "Topic \"" + topic + "\" already exists, subscribing");
-						ret = XMPPHelper.subscribeTo(xmppConn, pubmgr, topic); 
+						ret = XMPPHelper.subscribeTo(xmppConn, xmppLock,pubmgr, topic); 
 					} else {
 						Log.e(TAG, "Problem creating topic \"" + topic + "\": " + e.getMessage());
 						Log.e(TAG, "Error message is: " + e.getXMPPError().getMessage());

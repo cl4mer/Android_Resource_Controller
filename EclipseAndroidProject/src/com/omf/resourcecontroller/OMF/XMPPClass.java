@@ -96,7 +96,7 @@ public class XMPPClass implements OMFMessageHandler {
 		@Override
 		public void run() {
 			
-			Message msg = null;
+			Message msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);		
 			try {
 				Log.i(TAG,"attempting connection");
 				xmppConn.connect(); 	
@@ -107,9 +107,9 @@ public class XMPPClass implements OMFMessageHandler {
 					xmppConn.addConnectionListener(connectionListener);
 					
 					xmppLogin(xmppConn, username, password);
-					myHomeNode = XMPPHelper.subscribeTo(xmppConn, pubmgr, myTopic);
+					myHomeNode = XMPPHelper.subscribeTo(xmppConn, xmppLock, pubmgr, myTopic);
 					if (myHomeNode == null)
-						myHomeNode = XMPPHelper.createTopic(xmppConn, pubmgr, myTopic);
+						myHomeNode = XMPPHelper.createTopic(xmppConn,xmppLock, pubmgr, myTopic);
 					if (myHomeNode != null) {
 						addSubscription(myTopic, myHomeNode);
 						//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
@@ -119,8 +119,7 @@ public class XMPPClass implements OMFMessageHandler {
 					}
 				}      				
 			} catch(XMPPException e) {				
-				Log.e(TAG, "XMPP connection failed",e);
-				msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);				
+				Log.e(TAG, "XMPP connection failed",e);			
 			} finally {
 				msg.sendToTarget();
 			}			
@@ -180,19 +179,6 @@ public class XMPPClass implements OMFMessageHandler {
 			}
 		}
 	}
-/*
-	private LeafNode findTopic(String topic) {
-		LeafNode ret = null;
-		try {
-			ret = pubmgr.getNode(topic);
-		} catch(XMPPException e) {
-			Log.e(TAG, "Problem getting node " + topic + ": " + e.getMessage());
-			Log.e(TAG, "Error message is " + e.getXMPPError().getMessage());
-		} 
-		return ret;
-	}
-*/
-
 
 	/**
 	 * Register a new user in xmpp
@@ -270,7 +256,7 @@ public class XMPPClass implements OMFMessageHandler {
 			publishMembershipInformation(message.getMessageId(), null);
 
 			if (!subscriptions.containsKey(topic)) {
-				LeafNode node = XMPPHelper.subscribeTo(xmppConn, pubmgr, topic); 
+				LeafNode node = XMPPHelper.subscribeTo(xmppConn, xmppLock, pubmgr, topic); 
 				if (node != null) {					
 					addSubscription(topic, node);
 					publishMembershipInformation(message.getMessageId(), topic);
@@ -361,7 +347,7 @@ public class XMPPClass implements OMFMessageHandler {
 		String topic = topicFromMembership(p.getValue("membership"));
 		
 		String appResourceId = "twimight";
-		Application app = new Application(xmppConn, pubmgr, appResourceId, appResourceId, topic);
+		Application app = new Application(xmppConn, xmppLock, pubmgr, appResourceId, appResourceId, topic);
 		
 		if (app.isGood())
 			publishApplicationCreation(cid, appResourceId, p);
