@@ -48,20 +48,15 @@ public class StartUpActivity extends Activity {
 	View.OnClickListener toggleListener = new View.OnClickListener() {
 		@Override
 		public void onClick(View v) {
-			
+
 			Intent intent = new Intent(StartUpActivity.this, BackgroundService.class);				
-			if(toggleService.isChecked() && !BackgroundService.isServiceRunning(StartUpActivity.this.getApplicationContext(),
-																				".BackgroundService")) {
-				
-				Log.i(TAG, "Start Service");
+			if(toggleService.isChecked()) {
+				Log.i(TAG,"Starting background service");
 				startService(intent);
-				Log.i(TAG, "Service started");
 			}else {
-				Log.i(TAG, "Stop Service");
+				Log.i(TAG,"Stopping background service");
 				stopService(intent);
-				Log.i(TAG, "Service stopped");
 			}
-			
 		}
 	};
 }

@@ -57,6 +57,7 @@ public class XMPPClass implements OMFMessageHandler {
 	private PubSubManager pubmgr;
 	
 	private XMPPConnection xmppConn;
+	private static final Object xmppLock = new Object();
 	private XMPPConnectionListener connectionListener;							
 	private String username;
 	private String password;
@@ -86,7 +87,7 @@ public class XMPPClass implements OMFMessageHandler {
 	 * This method is called by the background service with the counter value
 	 * @param counter
 	 */
-	public void updateCounter(int counter){
+	public void counterUpdate(int counter){
 		
 	}
 	
@@ -119,8 +120,7 @@ public class XMPPClass implements OMFMessageHandler {
 				}      				
 			} catch(XMPPException e) {				
 				Log.e(TAG, "XMPP connection failed",e);
-				msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);
-				xmppConn = null;
+				msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);				
 			} finally {
 				msg.sendToTarget();
 			}			
@@ -406,17 +406,15 @@ public class XMPPClass implements OMFMessageHandler {
 
 		@Override
 		public void run() {
-			synchronized (xmppConn) {
+			synchronized (xmppLock) {
 				xmppConn.disconnect();
-			}
-			// Can I put this inside the synchronized?
-			xmppConn = null;
+			}			
 		}
 		
 	}
 	
 	public void destroyConnection() {			
-		synchronized (xmppConn) {
+		synchronized (xmppLock) {
 			if(xmppConn != null) {
 				//remove connection listener
 				xmppConn.removeConnectionListener(connectionListener);
@@ -475,7 +473,7 @@ public class XMPPClass implements OMFMessageHandler {
 
 		public void reconnectionSuccessful() {
 			Log.d("SMACK","Connection reconnected");
-			synchronized (xmppConn) {
+			synchronized (xmppLock) {
 				if (!xmppConn.isAuthenticated()){
 					try {
 						xmppLogin(xmppConn,username,password);

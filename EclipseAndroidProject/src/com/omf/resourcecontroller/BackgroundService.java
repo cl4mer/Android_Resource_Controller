@@ -68,16 +68,15 @@ public class BackgroundService extends Service {
 		topicName = telephonyMgr.getDeviceId();
 
 		uNamePass = "android.omf." + topicName;
-
-		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  xmppHandler);
-		//bindToRemoteOmfService();
-		xmppHelper.createConnection(getApplicationContext());
+		xmppHelper  = new XMPPClass(uNamePass, uNamePass, topicName,  xmppHandler);			
 	}
 
 
 
 	@Override
 	public int onStartCommand(Intent intent, int flags, int startId) {
+		xmppHelper.createConnection(getApplicationContext());
+		bindToRemoteOmfService();
 		return Service.START_STICKY;
 	}
 
@@ -169,11 +168,12 @@ public class BackgroundService extends Service {
     private class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message msg) {
-        	Log.i(TAG, "handle message");
+        	
             switch (msg.what) {
-                case Constants.MESSAGE_COUNTER_UPDATE:         
+                case Constants.MESSAGE_COUNTER_UPDATE:    
+                	Log.i(TAG, "counter update received,value = " + msg.arg1);
                 	int counter = msg.arg1;
-                	xmppHelper.updateCounter(counter);
+                	xmppHelper.counterUpdate(counter);
                     break;
                 default:
                     super.handleMessage(msg);
@@ -200,7 +200,7 @@ public class BackgroundService extends Service {
 				break; 	
 			case Constants.MESSAGE_CONNECTION_SUCCESS: 	
 				Log.i(TAG,"connection success received");
-				bindToRemoteOmfService();
+				//bindToRemoteOmfService();
 				resubscribe();
 				break; 	
 			case Constants.MESSAGE_CONNECTION_FAILED:  				
