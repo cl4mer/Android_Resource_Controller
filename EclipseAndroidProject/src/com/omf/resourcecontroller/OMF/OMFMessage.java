@@ -34,12 +34,13 @@ public class OMFMessage {
 	private String messageId;
 	private long ts;
 	private String src;
-	Properties properties;
-	Properties guard;
+	private Properties properties;
+	private Properties guard;
 	private String protocolId;
 	private String topic;
 	private IType itype;
 	private String cid;
+	private String res_id;
 	private String rtype;
 	
 	public OMFMessage() {
@@ -54,7 +55,16 @@ public class OMFMessage {
 		this.topic = null;
 		this.itype = null;
 		this.cid = null;
+		this.res_id = null;
 		this.rtype = null;
+	}
+
+	public void setResId(String res_id) {
+		this.res_id = res_id;
+	}
+
+	public String getResId() {
+		return res_id;
 	}
 
 	public String getTopic() {

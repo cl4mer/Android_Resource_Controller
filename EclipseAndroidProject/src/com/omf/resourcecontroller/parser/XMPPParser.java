@@ -68,6 +68,7 @@ public class XMPPParser {
     	EXPECT_CONFIGURE,
     	EXPECT_RELEASE,
     	EXPECT_SRC,
+    	EXPECT_RES_ID,
     	EXPECT_TS,
     	EXPECT_REPLYTO,
     	EXPECT_ITYPE,
@@ -240,6 +241,9 @@ public class XMPPParser {
 					} else if (tag.equalsIgnoreCase("replyto")) {
 						expectedText = ExpectedText.EXPECT_REPLYTO;
 						state = ParserState.PARSE_TEXT;
+					} else if (tag.equalsIgnoreCase("res_id")) {
+						expectedText = ExpectedText.EXPECT_RES_ID;
+						state = ParserState.PARSE_TEXT;
 					} else if (tag.equalsIgnoreCase("itype")) {
 						if (message.getMessageType() != MessageType.inform)
 							failParse("Found <itype> in " + message.getMessageType() + " message");
@@ -269,6 +273,7 @@ public class XMPPParser {
 					case EXPECT_ITYPE: message.setItype(xpp.getText()); break;
 					case EXPECT_RTYPE: message.setRtype(xpp.getText()); break;
 					case EXPECT_CID: message.setCid(xpp.getText()); break;
+					case EXPECT_RES_ID: message.setResId(xpp.getText()); break;
 					case EXPECT_NONE: failParse("Can't expect NONE"); break;
 					default:
 						failParse("Internal error: forgot a case label in PARSE_TEXT");
@@ -289,6 +294,7 @@ public class XMPPParser {
 					case EXPECT_ITYPE: failIfUnequal(xpp.getName(), "itype"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_RTYPE: failIfUnequal(xpp.getName(), "rtype"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_CID: failIfUnequal(xpp.getName(), "cid"); state = ParserState.PARSE_MESSAGE_DATA; break;
+					case EXPECT_RES_ID: failIfUnequal(xpp.getName(), "res_id"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					case EXPECT_NONE: failParse("Can't expect NONE"); state = ParserState.PARSE_MESSAGE_DATA; break;
 					default:
 						failParse("Internal error: forgot a case label in PARSE_END_TAG");

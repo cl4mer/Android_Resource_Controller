@@ -272,9 +272,9 @@ public class BackgroundService extends Service {
 		return null;
 	}
 
-	private void resubscribe() {
-		xmppHelper.resubscribe();
-	}
+//	private void resubscribe() {
+//		xmppHelper.resubscribe();
+//	}
 
 	protected void handleFailure() {
 		// TODO Auto-generated method stub	

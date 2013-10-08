@@ -40,14 +40,20 @@ public class Application implements OMFMessageHandler {
 	private class AppRunnable extends Thread {
 		private AppState appState;
 		private int seq;
+		private int numTweets;
 		
 		public AppRunnable() {
 			 this.appState = AppState.STATE_INIT;
 			 this.seq = 1;
+			 this.numTweets = 0;
 		}
 		
 		public AppState getAppState() {
 			return this.appState;
+		}
+		
+		public void setNumTweets(int numTweets) {
+			this.numTweets = numTweets;
 		}
 		
 		@Override
@@ -65,15 +71,14 @@ public class Application implements OMFMessageHandler {
 			
 			// Now RUNNING or EXITING
 			// If RUNNING, the thread does its thing, checking appState occasionally
-			int i = 0;
-			while (appState != AppState.STATE_EXITING && i < 5) {
+			while (appState != AppState.STATE_EXITING) {
 				try {
-					Thread.sleep(1000);
-					signalStdout("Hi, this is an app, message " + i + "\n");
+					this.wait();
 				} catch (InterruptedException e) {
 					; // Empty
+				} finally {
+					signalStdout("Got " + numTweets + " tweets");
 				}
-				i++;
 			}
 			
 			appState = AppState.STATE_EXITING;
@@ -96,16 +101,22 @@ public class Application implements OMFMessageHandler {
 		public void startApp() {
 			synchronized (this) {
 				appState = AppState.STATE_RUNNING;
+				signalState();
 				this.notify();
 			}
-			signalState();
 			this.start();
 		}
 		
 		public void stopApp() {
-			appState = AppState.STATE_EXITING;
+			synchronized (this) {
+				appState = AppState.STATE_EXITING;
+				signalState();
+				this.notify();
+			}
+		}
+		
+		public void wakeUp() {
 			this.notify();
-			signalState();
 		}
 		
 		private synchronized void signalStdout(String msg) {
@@ -225,32 +236,43 @@ public class Application implements OMFMessageHandler {
 	}
 	
 	public void stopApp() {
-		app.stopApp();
-		
-		boolean joined = false;
-		
-		while (!joined) {
-			try {
-				app.join();
-				joined = true;
-			} catch (InterruptedException e) {
-				; // empty
+		if (app != null) {
+			Log.i(TAG, "about to stop app");
+			app.stopApp();
+			Log.i(TAG, "app stopped");
+			
+			boolean joined = false;
+			
+			while (!joined) {
+				try {
+					app.join();
+					joined = true;
+				} catch (InterruptedException e) {
+					; // empty
+				}
 			}
-		}
+		}		
+		isGood = false;
 	}
 
 	public void handleConfigure(OMFMessage message) {
+		Log.i(TAG, "in handleConfigure()");
 		Properties p = message.getProperties();
 		
 		if (appliesToMe(message)) {
+			Log.i(TAG, "message applies to me");
 			if (p.containsKey("state")) {
 				AppState appState = app.getAppState();
 				String newState = p.getValue("state");
 				
 				if (newState.equalsIgnoreCase("running")) {
+					Log.i(TAG, "starting app");
 					if (appState == AppState.STATE_INIT)
 						startApp();
 					// potential else-ifs here
+				} else if (newState.equalsIgnoreCase("stopped")) {
+					Log.i(TAG, "stopping app");
+					stopApp();
 				}
 			}
 			
@@ -263,7 +285,7 @@ public class Application implements OMFMessageHandler {
 		Properties g = message.getGuard();
 		
 		return g.containsKey("type") && g.getValue("type").equalsIgnoreCase("application")
-				&& g.containsKey("name") && g.getValue("name").equalsIgnoreCase(appName);
+				&& (!g.containsKey("name") || g.getValue("name").equalsIgnoreCase(appName));
 	}
 
 	@Override
@@ -273,7 +295,7 @@ public class Application implements OMFMessageHandler {
 			Log.d(TAG, "Received <create> message (can't handle, so I'm not doing anything about it)");
 			break;
 		case CONFIGURE:
-			Log.d(TAG, "Received <configure> messages");
+			Log.d(TAG, "Received <configure> message");
 			handleConfigure(message);
 			break;
 		case REQUEST:
@@ -288,5 +310,10 @@ public class Application implements OMFMessageHandler {
 		}
 
 		return;		
+	}
+
+	public void publishCounterUpdate(int counter) {
+		app.setNumTweets(counter);
+		app.wakeUp();
 	}
 }

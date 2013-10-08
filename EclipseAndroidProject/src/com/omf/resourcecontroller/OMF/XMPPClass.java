@@ -63,12 +63,13 @@ public class XMPPClass implements OMFMessageHandler {
 	private String password;
 	private String mappedResourceId;
 
-	HashMap<String, Subscription> subscriptions;
-	LeafNode myHomeNode; 
-	String myTopic;
+	private HashMap<String, Subscription> subscriptions;
+	private LeafNode myHomeNode; 
+	private String myTopic;
 	
-	Handler handler;
-
+	private Handler handler;
+	private Application app;
+	
 	public XMPPClass(String username, String password, String rid, Handler handler) {
 		this.subscriptions = new HashMap<String, Subscription>();
 		this.myTopic = rid;
@@ -77,6 +78,7 @@ public class XMPPClass implements OMFMessageHandler {
 		this.password = password;
 		this.handler = handler;
 		this.myHomeNode = null;
+		this.app = null;
 	}
 	
 	private static String mapResourceId(String rid) {
@@ -87,8 +89,9 @@ public class XMPPClass implements OMFMessageHandler {
 	 * This method is called by the background service with the counter value
 	 * @param counter
 	 */
-	public void counterUpdate(int counter){
-		
+	public void counterUpdate(int counter) {
+		if (app != null && app.isGood())
+			app.publishCounterUpdate(counter);
 	}
 	
 	private class ConnectRunnable implements Runnable {
@@ -131,7 +134,7 @@ public class XMPPClass implements OMFMessageHandler {
 		AndroidConnectionConfiguration connConfig = new AndroidConnectionConfiguration(Constants.SERVER, Constants.PORT);		
 		connConfig.setReconnectionAllowed(false);
 		connConfig.setSendPresence(true);
-		connConfig.setDebuggerEnabled(true);
+		//connConfig.setDebuggerEnabled(true);
 		return connConfig;
 	}
 	
@@ -269,15 +272,20 @@ public class XMPPClass implements OMFMessageHandler {
 				String desiredState = p.getValue("state");
 				if (desiredState.equalsIgnoreCase("running"))
 					startApplication();
+				else if (desiredState.equalsIgnoreCase("stopped"))
+					stopApplication();
 			}
 		}
 	}
 
 	private void startApplication() {
-		// TODO Auto-generated method stub
-		
+		app.startApp();
 	}
 
+	private void stopApplication() {
+		app.stopApp();
+	}
+	
 	/** Checks the guard inside a &lt;configure&gt; message to see if it applies to this RC.
 	 * 
 	 * This is only a very simplified version of a &lt;guard&gt; check
@@ -332,7 +340,6 @@ public class XMPPClass implements OMFMessageHandler {
 		String what = p.getValue("type");
 		
 		if (what != null) {
-			
 			Log.i(TAG, "Handling <create> message for \"" + what + "\"");
 			
 			if (what.equalsIgnoreCase("application")) {
@@ -347,7 +354,7 @@ public class XMPPClass implements OMFMessageHandler {
 		String topic = topicFromMembership(p.getValue("membership"));
 		
 		String appResourceId = "twimight";
-		Application app = new Application(xmppConn, xmppLock, pubmgr, appResourceId, appResourceId, topic);
+		this.app = new Application(xmppConn, xmppLock, pubmgr, appResourceId, appResourceId, topic);
 		
 		if (app.isGood())
 			publishApplicationCreation(cid, appResourceId, p);
@@ -356,26 +363,23 @@ public class XMPPClass implements OMFMessageHandler {
 	}
 
 	private void publishApplicationCreationFailure(String cid) {
-		Log.i(TAG, "About to publish creation failure message");
 		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.creationFailed, cid);
 		myHomeNode.publish(new PayloadItem<InformXMLMessage>(inform));
-		Log.i(TAG, "Creation failure message published to home node");
 	}
 
 	private void publishApplicationCreation(String cid, String appResourceId, Properties originalProperties) {
-		Log.i(TAG, "About to publish creation OK message");
 		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.creationOk, cid);
 		
 		Properties p = new Properties(MessageType.PROPS);
 		//p.setNamespace("application", "http://schema.mytestbed.net/omf/6.0/protocol/application");
-		//p.addKey("res_id", mapResourceId(appResourceId), KeyType.STRING);
-		p.addKey("membership", originalProperties.getValue("membership"), KeyType.STRING);
+		p.addKey("res_id", mapResourceId(appResourceId), KeyType.STRING);
+		p.addKey("uid", appResourceId, KeyType.STRING);
 		p.addKey("hrn", appResourceId, KeyType.STRING);
+		p.addKey("membership", originalProperties.getValue("membership"), KeyType.STRING);
 		inform.addProperties(p);
 		
 		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
 		myHomeNode.publish(payload);
-		Log.i(TAG, "Creation message published to home node");
 	}
 
 	private void handleRequest(OMFMessage message) {
@@ -384,8 +388,10 @@ public class XMPPClass implements OMFMessageHandler {
 	}
 
 	private void handleRelease(OMFMessage message) {
-		// TODO Auto-generated method stub
-		
+		if (app != null && app.isGood()) {
+			app.stopApp();
+			app = null;
+		}
 	}
 
 	public class DisconnectRunnable implements Runnable {
