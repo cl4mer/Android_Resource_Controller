@@ -172,8 +172,7 @@ public class BackgroundService extends Service {
             switch (msg.what) {
                 case Constants.MESSAGE_COUNTER_UPDATE:    
                 	Log.i(TAG, "counter update received,value = " + msg.arg1);
-                	int counter = msg.arg1;
-                	xmppHelper.counterUpdate(counter);
+                	xmppHelper.counterUpdate(msg.arg1);
                     break;
                 default:
                     super.handleMessage(msg);

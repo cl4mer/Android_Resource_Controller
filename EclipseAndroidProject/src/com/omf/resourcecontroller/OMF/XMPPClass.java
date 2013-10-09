@@ -26,6 +26,7 @@
 package com.omf.resourcecontroller.OMF;
 
 import java.util.HashMap;
+import java.util.Map;
 
 import org.jivesoftware.smack.AccountManager;
 import org.jivesoftware.smack.AndroidConnectionConfiguration;
@@ -63,12 +64,12 @@ public class XMPPClass implements OMFMessageHandler {
 	private String password;
 	private String mappedResourceId;
 
-	private HashMap<String, Subscription> subscriptions;
+	private Map<String, Subscription> subscriptions;
 	private LeafNode myHomeNode; 
 	private String myTopic;
 	
 	private Handler handler;
-	private Application app;
+	private Map<String, Application> apps;
 	
 	public XMPPClass(String username, String password, String rid, Handler handler) {
 		this.subscriptions = new HashMap<String, Subscription>();
@@ -78,7 +79,7 @@ public class XMPPClass implements OMFMessageHandler {
 		this.password = password;
 		this.handler = handler;
 		this.myHomeNode = null;
-		this.app = null;
+		this.apps = new HashMap<String, Application>();
 	}
 	
 	private static String mapResourceId(String rid) {
@@ -90,6 +91,7 @@ public class XMPPClass implements OMFMessageHandler {
 	 * @param counter
 	 */
 	public void counterUpdate(int counter) {
+		Application app = apps.get("twimight");
 		if (app != null && app.isGood())
 			app.publishCounterUpdate(counter);
 	}
@@ -279,11 +281,15 @@ public class XMPPClass implements OMFMessageHandler {
 	}
 
 	private void startApplication() {
-		app.startApp();
+		Application app = apps.get("twimight");
+		if (app != null && app.isGood())
+			app.startApp();
 	}
 
 	private void stopApplication() {
-		app.stopApp();
+		Application app = apps.get("twimight");
+		if (app != null && app.isGood())
+			app.stopApp();
 	}
 	
 	/** Checks the guard inside a &lt;configure&gt; message to see if it applies to this RC.
@@ -354,11 +360,12 @@ public class XMPPClass implements OMFMessageHandler {
 		String topic = topicFromMembership(p.getValue("membership"));
 		
 		String appResourceId = "twimight";
-		this.app = new Application(xmppConn, xmppLock, pubmgr, appResourceId, appResourceId, topic);
+		Application app = new Application(xmppConn, xmppLock, pubmgr, appResourceId, appResourceId, topic);
 		
-		if (app.isGood())
+		if (app.isGood()) {
+			apps.put(appResourceId, app);
 			publishApplicationCreation(cid, appResourceId, p);
-		else
+		} else
 			publishApplicationCreationFailure(cid);
 	}
 
@@ -388,9 +395,13 @@ public class XMPPClass implements OMFMessageHandler {
 	}
 
 	private void handleRelease(OMFMessage message) {
-		if (app != null && app.isGood()) {
-			app.stopApp();
-			app = null;
+		Properties p = message.getProperties();
+		if (p != null && p.containsKey("res_id")) {
+			String resId = p.getValue("res_id");
+			Application app = apps.get(resId);
+			if (app != null && app.isGood())
+				app.stopApp();
+			apps.remove("twimight");
 		}
 	}
 
@@ -426,18 +437,17 @@ public class XMPPClass implements OMFMessageHandler {
 	}
 
 	public void destroyTopics() {
-		
 		for (String topic : subscriptions.keySet()) {
 			Subscription s = subscriptions.get(topic);
 			LeafNode node = s.getNode();
 			OMFEventCoordinator nodeListener = s.getCoordinator();
 			node.removeItemEventListener(nodeListener);
 			try {
-				pubmgr.deleteNode(topic);
+				node.unsubscribe(xmppConn.getUser());
 			} catch (XMPPException e) {
-				Log.e(TAG, "Node deletion problem");				
+				Log.e(TAG, "Node deletion problem", e);				
 			} catch (IllegalStateException e) {
-				Log.e(TAG, "Node deletion problem",e);				
+				Log.e(TAG, "Node deletion problem", e);				
 			}
 		}
 		

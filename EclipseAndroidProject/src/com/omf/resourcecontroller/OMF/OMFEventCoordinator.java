@@ -37,7 +37,6 @@ class OMFEventCoordinator implements ItemEventListener<PayloadItem<XMLMessage>> 
 					if (RecentMessageIds.isNewId(omfMessage.getMessageId()))	{
 						Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is new");							
 						handler.handle(omfMessage);
-						System.out.println(omfMessage.toString());
 					} else 
 						Log.d(TAG, "Message ID " + omfMessage.getMessageId() + " is a duplicate");
 				} catch (XmlPullParserException e) {

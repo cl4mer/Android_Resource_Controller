@@ -71,13 +71,15 @@ public class Application implements OMFMessageHandler {
 			
 			// Now RUNNING or EXITING
 			// If RUNNING, the thread does its thing, checking appState occasionally
-			while (appState != AppState.STATE_EXITING) {
-				try {
-					this.wait();
-				} catch (InterruptedException e) {
-					; // Empty
-				} finally {
-					signalStdout("Got " + numTweets + " tweets");
+			synchronized (this) {
+				while (appState != AppState.STATE_EXITING) {
+					try {
+						this.wait();
+					} catch (InterruptedException e) {
+						; // Empty
+					} finally {
+						informStdout("Got " + numTweets + " tweets");
+					}
 				}
 			}
 			
@@ -102,16 +104,18 @@ public class Application implements OMFMessageHandler {
 			synchronized (this) {
 				appState = AppState.STATE_RUNNING;
 				signalState();
-				this.notify();
 			}
 			this.start();
 		}
 		
 		public void stopApp() {
 			synchronized (this) {
-				appState = AppState.STATE_EXITING;
-				signalState();
-				this.notify();
+				if (appState != AppState.STATE_EXITING
+						&& appState != AppState.STATE_EXITED) {
+					appState = AppState.STATE_EXITING;
+					signalState();
+					this.notify();
+				}
 			}
 		}
 		
@@ -119,8 +123,8 @@ public class Application implements OMFMessageHandler {
 			this.notify();
 		}
 		
-		private synchronized void signalStdout(String msg) {
-			Log.i(TAG, "About to publish state change message");
+		private synchronized void informStdout(String msg) {
+			Log.i(TAG, "About to publish STDOUT message");
 			InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, null);
 			
 			Properties p = new Properties(MessageType.PROPS);
@@ -135,7 +139,7 @@ public class Application implements OMFMessageHandler {
 			
 			PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
 			membershipNode.publish(payload);
-			Log.i(TAG, "State change message published");
+			Log.i(TAG, "STDOUT message published");
 			
 			seq++;		
 		}
@@ -236,23 +240,26 @@ public class Application implements OMFMessageHandler {
 	}
 	
 	public void stopApp() {
-		if (app != null) {
-			Log.i(TAG, "about to stop app");
-			app.stopApp();
-			Log.i(TAG, "app stopped");
-			
-			boolean joined = false;
-			
-			while (!joined) {
-				try {
-					app.join();
-					joined = true;
-				} catch (InterruptedException e) {
-					; // empty
+		synchronized (app) {
+			if (isGood()) {
+				Log.i(TAG, "about to stop app");
+				app.stopApp();
+				
+				boolean joined = false;
+				
+				while (!joined) {
+					try {
+						Log.i(TAG, "joining...");
+						app.join();
+						Log.i(TAG, "joining done");
+						joined = true;
+					} catch (InterruptedException e) {
+						; // empty
+					}
 				}
-			}
-		}		
-		isGood = false;
+			}		
+			isGood = false;
+		}
 	}
 
 	public void handleConfigure(OMFMessage message) {
