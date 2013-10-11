@@ -1,451 +1,502 @@
+/* Contains contributions that are copyright (c) 2013 ETH Zürich. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions are met:
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
+ *      documentation and/or other materials provided with the distribution.
+ *    * Neither the names of ETH Zürich nor the names of other contributors 
+ *      may be used to endorse or promote products derived from this software 
+ *      without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL <COPYRIGHT 
+ * HOLDERBE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, 
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR 
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY 
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING 
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
 package com.omf.resourcecontroller.OMF;
 
-import java.io.IOException;
 import java.util.HashMap;
-import java.util.List;
+import java.util.Map;
 
 import org.jivesoftware.smack.AccountManager;
-import org.jivesoftware.smack.ConnectionConfiguration;
+import org.jivesoftware.smack.AndroidConnectionConfiguration;
 import org.jivesoftware.smack.ConnectionListener;
 import org.jivesoftware.smack.SmackAndroid;
 import org.jivesoftware.smack.XMPPConnection;
 import org.jivesoftware.smack.XMPPException;
-import org.jivesoftware.smack.packet.Presence;
 import org.jivesoftware.smackx.ping.PingManager;
-import org.jivesoftware.smackx.pubsub.ConfigureForm;
-import org.jivesoftware.smackx.pubsub.FormType;
-import org.jivesoftware.smackx.pubsub.ItemPublishEvent;
-import org.jivesoftware.smackx.pubsub.Node;
+import org.jivesoftware.smackx.pubsub.LeafNode;
 import org.jivesoftware.smackx.pubsub.PayloadItem;
 import org.jivesoftware.smackx.pubsub.PubSubManager;
-import org.jivesoftware.smackx.pubsub.PublishModel;
-import org.jivesoftware.smackx.pubsub.listener.ItemEventListener;
-import org.xmlpull.v1.XmlPullParserException;
 
 import android.content.Context;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 
 import com.omf.resourcecontroller.Constants;
-import com.omf.resourcecontroller.parser.XMPPParser;
+import com.omf.resourcecontroller.generator.IType;
+import com.omf.resourcecontroller.generator.InformXMLMessage;
+import com.omf.resourcecontroller.generator.Properties;
+import com.omf.resourcecontroller.generator.Properties.KeyType;
+import com.omf.resourcecontroller.generator.Properties.MessageType;
 
-
-
-
-/**
- * 
- * 
- *
- */
-
-
-
-public class XMPPClass implements Constants{
+public class XMPPClass implements OMFMessageHandler {
 
 	public static final String TAG = "XMPPClass";
-	//private XMPPConnectThread conthread = null;
+	
+	private PubSubManager pubmgr;
+	
+	private XMPPConnection xmppConn;
+	private static final Object xmppLock = new Object();
+	private XMPPConnectionListener connectionListener;							
+	private String username;
+	private String password;
+	private String mappedResourceId;
 
-	// XMPP variables
-	// 	XMPP CONNECTION VAR
-	private ConnectionConfiguration connConfig = null;		//  XMPP CONFIGURATION
-	private PubSubManager pubmgr = null;					// 	XMPP PUB SUB MANAGER
-	//private Node eventNode = null;							// 	XMPP Eventnode
-
-	private XMPPConnectionListener connectionListener = null;
-	private Context ctx = null;								// 	App context
-	private String Username = null;							//	Username for XMPP login
-	private String Password = null;							//	Password for XMPP login
-	private String Topic = null;
-	private XMPPConnection xmpp = null;
-
-	//XMPP Parser 
-	private XMPPParser parser = null;
-
-	//OMF message object
-	private OMFMessage omfMessage = null;
-
-
-	//Node and Node Listener HashMap
-	HashMap<String, ItemEventCoordinator> NodeListeners;
-	HashMap<String, Node> Nodes;
-
-	//flag
-	private boolean flag;
-
-
+	private Map<String, Subscription> subscriptions;
+	private LeafNode myHomeNode; 
+	private String myTopic;
+	
+	private Handler handler;
+	private Map<String, Application> apps;
+	
+	public XMPPClass(String username, String password, String rid, Handler handler) {
+		this.subscriptions = new HashMap<String, Subscription>();
+		this.myTopic = rid;
+		this.mappedResourceId = mapResourceId(rid);
+		this.username = username;
+		this.password = password;
+		this.handler = handler;
+		this.myHomeNode = null;
+		this.apps = new HashMap<String, Application>();
+	}
+	
+	private static String mapResourceId(String rid) {
+		return "xmpp://" + rid + "@" + Constants.SERVER;
+	}
+	
 	/**
-	 * Constructor
+	 * This method is called by the background service with the counter value
+	 * @param counter
 	 */
-	//public XMPPConnectThread(){
-
-	// Create thread in here
-	//conthread = new XMPPConnectThread("XMPP thread");
-	//	NodeListeners = new HashMap<String, ItemEventCoordinator>();
-	//	Nodes = new HashMap<String, Node>();
-	//}
-
-	public XMPPClass(String username, String password, String topicName, Context appContext){
-
-		//conthread = new XMPPConnectThread("XMPP thread");
-		NodeListeners = new HashMap<String, ItemEventCoordinator>();
-		Nodes = new HashMap<String, Node>();
-		Username = username;
-		Password = password;
-		Topic = topicName;
-		ctx = appContext;
-		flag = true;
+	public void counterUpdate(int counter) {
+		Application app = apps.get("twimight");
+		if (app != null && app.isGood())
+			app.publishCounterUpdate(counter);
 	}
+	
+	private class ConnectRunnable implements Runnable {
 
-	public XMPPConnection XMPPCreateConnection(){
+		@Override
+		public void run() {
+			
+			Message msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null);		
+			try {
+				Log.i(TAG,"attempting connection");
+				xmppConn.connect(); 	
+				
+				if(xmppConn.isConnected()){					
+					Log.i(TAG,"XMPP connected");
+					connectionListener = new XMPPConnectionListener();
+					xmppConn.addConnectionListener(connectionListener);
+					
+					xmppLogin(xmppConn, username, password);
+					myHomeNode = XMPPHelper.subscribeTo(xmppConn, xmppLock, pubmgr, myTopic);
+					if (myHomeNode == null)
+						myHomeNode = XMPPHelper.createTopic(xmppConn,xmppLock, pubmgr, myTopic);
+					if (myHomeNode != null) {
+						addSubscription(myTopic, myHomeNode);
+						//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
+						PingManager.getInstanceFor(xmppConn).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)					
+						msg = handler.obtainMessage(Constants.MESSAGE_CONNECTION_SUCCESS, -1, -1, null);
+						// XXX
+					}
+				}      				
+			} catch(XMPPException e) {				
+				Log.e(TAG, "XMPP connection failed",e);			
+			} finally {
+				msg.sendToTarget();
+			}			
+		}		
+	}
+	
+	
+	private AndroidConnectionConfiguration getConnectionConfig() throws XMPPException {
+		AndroidConnectionConfiguration connConfig = new AndroidConnectionConfiguration(Constants.SERVER, Constants.PORT);		
+		connConfig.setReconnectionAllowed(false);
+		connConfig.setSendPresence(true);
+		//connConfig.setDebuggerEnabled(true);
+		return connConfig;
+	}
+	
+
+	public void createConnection(Context appContext) {
 		//Init aSmack
-		SmackAndroid.init(ctx);
-		//SmackConfiguration.setDefaultPingInterval(100);	
-		// XMPP CONNECTION
-		connConfig = new ConnectionConfiguration(SERVER,PORT);
-		xmpp = new XMPPConnection(connConfig);
-
-		//Open XMPP Connection
-		try{
-			xmpp.connect(); 
-			if(xmpp.isConnected())
-				Log.i(TAG,"XMPP connected");
-		}catch(XMPPException e){
-			Log.e(TAG, "XMPP connection failed");
-			e.printStackTrace();
-			xmpp = null;
+		SmackAndroid.init(appContext);		
+		// XMPP CONNECTION		
+		try {
+			
+			AndroidConnectionConfiguration connConfig = getConnectionConfig();
+			xmppConn = new XMPPConnection(connConfig);
+			
+			if (Constants.SERVICE_NAME != null)
+				pubmgr = new PubSubManager(xmppConn, Constants.SERVICE_NAME);
+			else
+				pubmgr = new PubSubManager(xmppConn);
+			
+			Thread connectionThread = new Thread(new ConnectRunnable());
+			connectionThread.start();
+			
+		} catch (XMPPException e) {
+			 handler.obtainMessage(Constants.MESSAGE_CONNECTION_FAILED, -1, -1, null).sendToTarget();
 		}
-
-		//Add connection listener
-		if(xmpp.isConnected()){
-			connectionListener = new XMPPConnectionListener();
-			xmpp.addConnectionListener(connectionListener);
-		}
-
-		//Add ping manager to deal with disconnections (after 6 minutes idle xmpp disconnects)
-		PingManager.getInstanceFor(xmpp).setPingIntervall(5*60*1000);	//5 minutes (5*60*1000 in millisecons)
-
-		//Do Login
-		XMPPLogin(xmpp,Username,Password);
-
-		//If xmpp is logged in declare your presence
-		if(xmpp.isAuthenticated()){
-			//Declare presence
-			Presence presence = new Presence(Presence.Type.available);
-			xmpp.sendPacket(presence);
-		}
-
-		//Add pubsub manager
-		if(xmpp.isAuthenticated())
-		{
-			pubmgr = new PubSubManager(xmpp);
-		}
-		//CreateTopic
-		createTopic(Topic, false);
-
-		return xmpp;
+		
 	}
 
-	public boolean XMPPLogin(XMPPConnection Xmpp, String username,String pass){
+	public void xmppLogin(XMPPConnection conn, String username, String pass) throws XMPPException{
 
-		if(Xmpp.isConnected()){
+		if(conn.isConnected()){
 			try {
 				//1st try
-				Xmpp.login(username, pass);
-				Log.i(TAG,"XMPP Logged in");
-			} catch (XMPPException e) {
-				Log.e(TAG, "XMPP login failed");
-				Log.i(TAG, "Creating new account");
+				Log.d(TAG,"performing login with username " + username);
+				conn.login(username, pass);
+				Log.d(TAG,"XMPP Logged in");
+			} 
+			catch (XMPPException e) {
+				Log.e(TAG, "XMPP first login failed");
+				Log.d(TAG, "Creating new account");
 
-				try {
-					if(registerUser(Xmpp,username,pass)){
-						try {
-							Xmpp.login(username, pass);
-							flag=true;
-							Log.i(TAG,"XMPP Logged in");
-							return true;
-						} catch (XMPPException e1) {	
-							Log.e(TAG,"XMPP Login failed");
-							return false;
-						}	
-					}
-				} catch (XMPPException e1) {
-					Log.e(TAG,"Registration failed");
-					return false;
+				if(registerUser(conn,username,pass)){					
+						conn.login(username, pass);							
+					
 				}
 			}
 		}
-		return false;
-	}
-
-
-
-	public void createTopic(String topicName , boolean isProxy){
-
-		if(xmpp.isAuthenticated()){
-			//New node
-			Node eventNode = null;
-			//New node listener
-			ItemEventCoordinator eventListener = null;
-
-
-			//Node configuration form
-			ConfigureForm f = new ConfigureForm(FormType.submit);
-			/**
-			 * Configure form
-			 */
-			f.setPersistentItems(false);				//false
-			f.setPublishModel(PublishModel.open);		//open
-			f.setNotifyRetract(false);					//false
-			f.setSubscribe(true);						//true
-
-			try{
-				eventNode = pubmgr.getNode(topicName);
-			}catch(XMPPException e){
-				//e.printStackTrace();
-				Log.e(TAG, "Problem getting node "+ topicName);
-				//If node doesn't exist create it
-				try {
-					Log.i(TAG, "Creating node "+topicName);
-					eventNode = pubmgr.createNode(topicName,f);
-					//Put node to hashmap
-					Nodes.put(topicName,eventNode);
-
-				} catch (XMPPException e1) {
-					//e1.printStackTrace();
-					Log.e(TAG, "Problem creating event "+topicName);
-
-				}
-			}
-
-
-			try {
-				//Add event listener
-				eventListener = new ItemEventCoordinator(isProxy);
-				eventNode.addItemEventListener(eventListener);
-				//Put node listener created in a hashMap
-				NodeListeners.put(topicName, eventListener);
-
-				//Subscribe to the node
-				eventNode.subscribe(xmpp.getUser());
-			} catch (XMPPException e) {
-				e.printStackTrace();
-			}
-
-		}
-		//return newNode;
 	}
 
 	/**
 	 * Register a new user in xmpp
-	 * @param mycon : XMPPConnection object
+	 * @param connection : XMPPConnection object
 	 * @param username : String
 	 * @param pass : String
 	 * @throws XMPPException
 	 * @returns boolean: False if registration failed, else true
 	 */
-	public boolean registerUser(XMPPConnection mycon, String username, String  pass) throws XMPPException{
-		if(mycon != null && username!= null && pass != null){
-			AccountManager mgr = mycon.getAccountManager();
+	private boolean registerUser(XMPPConnection connection, String username, String  pass) throws XMPPException {
+		assert connection != null;
+		assert username != null;
+		assert pass != null;
+		
+		AccountManager mgr = connection.getAccountManager();
 
-			if (mgr.supportsAccountCreation ())
-			{
-				mgr.createAccount (username, pass);
-			}
-			Log.i(TAG, "Account created: "+username);
-
-			//XMPP refresh connection
-			if(mycon!= null)
-			{
-				flag=false;
-				mycon.disconnect();
-				mycon.connect(); 
-				//flag=true;
-				Log.i(TAG, "XMPP connection refresh ");
-			}
-			return true;
-		}
-		return false;
+		if (mgr.supportsAccountCreation ())
+			mgr.createAccount (username, pass);
+		Log.d(TAG, "Account created for " + username);		
+		return true;
 	}
 
 
-	public void OMFHandler(OMFMessage message){
-
-		if(message.getMessageType().equalsIgnoreCase("create"))
-		{
-			//message.OMFCreate();
-
-			createTopic(message.getProperty("uid"),true);
-
-		}
-		else if (message.getMessageType().equalsIgnoreCase("configure"))
-		{
-			//message.OMFConfigure();
-
-		}
-		else if (message.getMessageType().equalsIgnoreCase("request"))
-		{
-			//message.OMFRequest();
-
-		}
-		else if (message.getMessageType().equalsIgnoreCase("inform"))
-		{
-			//message.OMFInform();
-
-		}
-		else if (message.getMessageType().equalsIgnoreCase("release"))
-		{
-			//message.OMFInform();
-
+	@Override
+	public void handle(OMFMessage message) {
+		switch (message.getMessageType().getType()) {
+		case CREATE:
+			Log.d(TAG, "Received <create> message");
+			handleCreate(message);
+			break;
+		case CONFIGURE:
+			Log.d(TAG, "Received <configure> message");
+			handleConfigure(message);
+			break;
+		case REQUEST:
+			handleRequest(message);
+			Log.d(TAG, "Received <request> message");
+			break;
+		case INFORM:
+			Log.d(TAG, "Received <inform> message");
+			break;
+		case RELEASE:
+			handleRelease(message);
+			Log.d(TAG, "Received <release> message");
+			break;
 		}
 
 		return;
 	}
 
-	public void destroyConnection(){
-
-		//remove connection listener
-		xmpp.removeConnectionListener(connectionListener);
-
-		//destroy all topics and remove their listeners
-		destroyTopics();
-		if(xmpp != null)
-			xmpp.disconnect();
-
-		xmpp = null;
+	private void addSubscription(String topic, LeafNode node) {
+		OMFEventCoordinator eventListener = new OMFEventCoordinator(this);
+		node.addItemEventListener(eventListener);
+		subscriptions.put(topic, new Subscription(topic, node, eventListener));
 	}
 
-	public void destroySingleTopic(String topicName){
-		Node node = Nodes.get(topicName); 
-		ItemEventCoordinator nodeListener = NodeListeners.get(topicName);
-		node.removeItemEventListener(nodeListener);
-		Nodes.remove(topicName);
+	private String topicFromMembership(String membership) {
+		// Membership string is "xmpp://topic@host".
+		return membership.replaceAll("xmpp://([^@]+)@.*", "$1");
 	}
+	
+	private void handleConfigure(OMFMessage message) {
+		Properties p = message.getProperties();
+		
+		if (p == null) {
+			// Shouldn't happen
+			Log.wtf(TAG, "Configure message with null properties?");
+			return;
+		}
+		
+		if (p.containsKey("membership")) {
+			Log.i(TAG, "Configuring membership");
+			String topic = topicFromMembership(p.getValue("membership")); 
 
-	public void destroyTopics(){
-		//eventNode.removeItemEventListener(eventListener);
+			publishMembershipInformation(message.getMessageId(), null);
 
-
-		for (String key : Nodes.keySet()) {
-			Node node = Nodes.get(key);
-			ItemEventCoordinator nodeListener = NodeListeners.get(key);
-			node.removeItemEventListener(nodeListener);
-			try {
-				pubmgr.deleteNode(key);
-			} catch (XMPPException e) {
-				Log.e(TAG, "Node deletion problem");
-				e.printStackTrace();
+			if (!subscriptions.containsKey(topic)) {
+				LeafNode node = XMPPHelper.subscribeTo(xmppConn, xmppLock, pubmgr, topic); 
+				if (node != null) {					
+					addSubscription(topic, node);
+					publishMembershipInformation(message.getMessageId(), topic);
+				} else {
+					Log.e(TAG, "Can't subscribe to " + topic);
+				}
+			}
+		} else if (p.containsKey("state")) {
+			if (messageAppliesToMe(message)) {
+				String desiredState = p.getValue("state");
+				if (desiredState.equalsIgnoreCase("running"))
+					startApplication();
+				else if (desiredState.equalsIgnoreCase("stopped"))
+					stopApplication();
 			}
 		}
 	}
 
+	private void startApplication() {
+		Application app = apps.get("twimight");
+		if (app != null && app.isGood())
+			app.startApp();
+	}
 
-	/**Item Listener
+	private void stopApplication() {
+		Application app = apps.get("twimight");
+		if (app != null && app.isGood())
+			app.stopApp();
+	}
+	
+	/** Checks the guard inside a &lt;configure&gt; message to see if it applies to this RC.
 	 * 
-	 * @author Polychronis
-	 * 
+	 * This is only a very simplified version of a &lt;guard&gt; check
+	 * @param message the message containing the guard
+	 * @return true if the message applies to this RC, false if not
 	 */
-	@SuppressWarnings("rawtypes")
-	class ItemEventCoordinator  implements ItemEventListener <PayloadItem>
-	{
+	private boolean messageAppliesToMe(OMFMessage message) {
+		Properties g = message.getGuard();
+		
+		return g.containsKey("type") && g.getValue("type").equalsIgnoreCase("application")
+				&& g.containsKey("name") && g.getValue("name").contains("twimight");
+	}
 
-
-		//Variables,arrays to handle duplicate messages
-		private String[] duplicateCheck;
-		private boolean duplicateFlag;
-		private int in;
-		private boolean Proxy;
-		public ItemEventCoordinator(boolean isProxy){
-
-			duplicateCheck = new String[10];
-			duplicateFlag = false;
-			this.Proxy = isProxy;
-
-			in = 0;
-			for(int j=0;j<10;j++)
-			{
-				duplicateCheck[j] =""; 
-			}
+	private String[] getMemberships() {
+		String[] ret = new String[subscriptions.size() - 1];
+		int i = 0;
+		
+		for (String s : subscriptions.keySet()) {
+			if (!s.equals(myTopic))
+				ret[i++] = mapResourceId(s);
 		}
+		return ret;
+	}
+	
+	private void publishMembershipInformation(String cid, String topic) {
+		Log.i(TAG, "Publishing membership info");
+		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.status, cid);
+		
+		Properties p = new Properties(MessageType.PROPS);
+		p.addKey("membership", getMemberships(), KeyType.STRING);
+		inform.addProperties(p);
+
+		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
+		subscriptions.get(myTopic).getNode().publish(payload);
+		Log.i(TAG, "Membership message published to home node");
+		myHomeNode.publish(payload);
+		Log.i(TAG, "Membership message published to home node");
+
+		if (topic != null) {
+			// Must be fresh
+			inform = new InformXMLMessage(mappedResourceId, null, IType.status, cid);
+			inform.addProperties(p);
+			
+			payload = new PayloadItem<InformXMLMessage>(inform);
+			subscriptions.get(topic).getNode().publish(payload);
+			Log.i(TAG, "Membership message published to newly subscribed node");
+		}
+	}
+	
+	private void handleCreate(OMFMessage message) {
+		Properties p = message.getProperties();
+		String what = p.getValue("type");
+		
+		if (what != null) {
+			Log.i(TAG, "Handling <create> message for \"" + what + "\"");
+			
+			if (what.equalsIgnoreCase("application")) {
+				Log.i(TAG, "Creating an application resource.");
+				createApplication(message.getMessageId(), p);
+			}
+		} else
+			Log.i(TAG, "No type in <props>, don't know what to do.");
+	}
+
+	private void createApplication(String cid, Properties p) {
+		String topic = topicFromMembership(p.getValue("membership"));
+		
+		String appResourceId = "twimight";
+		Application app = new Application(xmppConn, xmppLock, pubmgr, appResourceId, appResourceId, topic);
+		
+		if (app.isGood()) {
+			apps.put(appResourceId, app);
+			publishApplicationCreation(cid, appResourceId, p);
+		} else
+			publishApplicationCreationFailure(cid);
+	}
+
+	private void publishApplicationCreationFailure(String cid) {
+		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.creationFailed, cid);
+		myHomeNode.publish(new PayloadItem<InformXMLMessage>(inform));
+	}
+
+	private void publishApplicationCreation(String cid, String appResourceId, Properties originalProperties) {
+		InformXMLMessage inform = new InformXMLMessage(mappedResourceId, null, IType.creationOk, cid);
+		
+		Properties p = new Properties(MessageType.PROPS);
+		//p.setNamespace("application", "http://schema.mytestbed.net/omf/6.0/protocol/application");
+		p.addKey("res_id", mapResourceId(appResourceId), KeyType.STRING);
+		p.addKey("uid", appResourceId, KeyType.STRING);
+		p.addKey("hrn", appResourceId, KeyType.STRING);
+		p.addKey("membership", originalProperties.getValue("membership"), KeyType.STRING);
+		inform.addProperties(p);
+		
+		PayloadItem<InformXMLMessage> payload = new PayloadItem<InformXMLMessage>(inform);
+		myHomeNode.publish(payload);
+	}
+
+	private void handleRequest(OMFMessage message) {
+		// TODO Auto-generated method stub
+		
+	}
+
+	private void handleRelease(OMFMessage message) {
+		Properties p = message.getProperties();
+		if (p != null && p.containsKey("res_id")) {
+			String resId = p.getValue("res_id");
+			Application app = apps.get(resId);
+			if (app != null && app.isGood())
+				app.stopApp();
+			apps.remove("twimight");
+		}
+	}
+
+	public class DisconnectRunnable implements Runnable {
 
 		@Override
-		public void handlePublishedItems(ItemPublishEvent <PayloadItem> items)
-		{
-			parser = new XMPPParser();
-			List<PayloadItem> payloads = items.getItems();
-			for(PayloadItem item : payloads)
-			{
-				if(!items.isDelayed())
-				{
-					try {
-						omfMessage = parser.XMLParse(item.toXML());
-
-						if(!omfMessage.isEmpty())
-						{
-							duplicateFlag = false;
-							for(int i=0;i<10;i++)
-							{	
-								if(omfMessage.equals(duplicateCheck[i]))
-								{
-									duplicateFlag = true;
-								}
-							}
-
-							if(!duplicateFlag)
-							{
-								//Circular array, increment counter
-								in=(in+1)%10;
-								//put message into duplicateCheck array
-								duplicateCheck[in]=omfMessage.getMessageID();
-								if(Proxy)
-								{
-									System.out.println("This is a resource proxy");
-								}
-								else
-								{
-									OMFHandler(omfMessage);
-								}
-								System.out.println(omfMessage.toString());
-							}
-						}
-					} catch (XmlPullParserException e) {
-						Log.e(TAG,"PullParser exception");
-					} catch (IOException e) {
-						Log.e(TAG,"IO exception");
-					}
-				}
-			}  
+		public void run() {
+			synchronized (xmppLock) {
+				xmppConn.disconnect();
+			}			
+		}
+		
+	}
+	
+	public void destroyConnection() {			
+		synchronized (xmppLock) {
+			if(xmppConn != null) {
+				//remove connection listener
+				xmppConn.removeConnectionListener(connectionListener);
+				//destroy all topics and remove their listeners
+				destroyTopics();
+				new Thread(new DisconnectRunnable()).start();
+			}
 		}
 	}
 
-	class XMPPConnectionListener implements ConnectionListener{
-		public void connectionClosed() {
-			Log.d("SMACK","Connection closed ()");
-			if (flag){
-				XMPPCreateConnection();
+	public void destroySingleTopic(String topic){
+		Subscription s = subscriptions.get(topic);
+		LeafNode node = s.getNode(); 
+		OMFEventCoordinator nodeListener = s.getCoordinator();
+		node.removeItemEventListener(nodeListener);
+		subscriptions.remove(topic);
+	}
+
+	public void destroyTopics() {
+		for (String topic : subscriptions.keySet()) {
+			Subscription s = subscriptions.get(topic);
+			LeafNode node = s.getNode();
+			OMFEventCoordinator nodeListener = s.getCoordinator();
+			node.removeItemEventListener(nodeListener);
+			try {
+				node.unsubscribe(xmppConn.getUser());
+			} catch (XMPPException e) {
+				Log.e(TAG, "Node deletion problem", e);				
+			} catch (IllegalStateException e) {
+				Log.e(TAG, "Node deletion problem", e);				
 			}
+		}
+		
+		subscriptions.clear();
+	}
+
+
+
+	class XMPPConnectionListener implements ConnectionListener {
+		private static final String TAG = "SMACK";
+		
+		public void connectionClosed() {
+			Log.d(TAG, "Connection closed ()");
 		}
 
 		public void connectionClosedOnError(Exception e) {
-			Log.d("SMACK","Connection closed due to an exception");
+			Log.d(TAG, "Connection closed due to an exception");
 			e.printStackTrace();
 		}
+
 		public void reconnectionFailed(Exception e) {
-			Log.d("SMACK","Reconnection failed due to an exception");
+			Log.d(TAG, "Reconnection failed due to an exception");
 			e.printStackTrace();
 		}
+
 		public void reconnectionSuccessful() {
 			Log.d("SMACK","Connection reconnected");
-			if (flag){
-				if(!xmpp.isAuthenticated()){
-					XMPPLogin(xmpp,Username,Password);
+			synchronized (xmppLock) {
+				if (!xmppConn.isAuthenticated()){
+					try {
+						xmppLogin(xmppConn,username,password);
+					} catch (XMPPException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
 				}
 			}
 		}
+
 		public void reconnectingIn(int seconds) {
-			Log.d("SMACK","Connection will reconnect in " + seconds);
+			Log.d(TAG, "Connection will reconnect in " + seconds);
 		}
 	}
 
 
-
+	public void resubscribe() {
+		// TODO Auto-generated method stub
+		
+	}
+	
 }
 
