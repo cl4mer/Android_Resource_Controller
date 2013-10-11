@@ -4,7 +4,8 @@ Android_Resource_Controller
 #An OMF Resource Controller for Android
 
 This is a stripped down version of an OMF Resource Controller written in Java.
-The source code is inside the folder "Eclipse Android Project".
+The source code is inside the folder "Eclipse Android Project".  It should be
+fully interoperable with an OMF6 Experiment Controller.
 
 It can be opened in eclipse.
 
